@@ -1,0 +1,52 @@
+services:
+
+  frontend:
+    build:
+      context: ./ProjectManagementReact
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - backend
+
+  backend:
+    build: ./ProjectManagementNode
+
+    ports:
+      - "3002:3002"
+      
+    env_file:
+      - ./ProjectManagementNode/.env.production
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: Projectmanagement
+      DB_USER: admin
+      DB_PASSWORD: Admin123
+      DB_URL: postgres://admin:Admin123@postgres:5432/Projectmanagement
+
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:17-alpine
+
+    environment:
+      POSTGRES_DB: Projectmanagement
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: Admin123
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:
+  
+  
+ 
