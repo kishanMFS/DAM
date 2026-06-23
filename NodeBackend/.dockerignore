@@ -1,0 +1,20 @@
+node_modules/
+npm-debug.log
+.husky
+.vscode
+# .env
+.env.backup
+.env.googleCloudKey.json
+
+dist/
+build/
+_test_/
+files/
+.git
+.gitignore
+README.md
+.vscode/
+.idea/
+*.log
+coverage/
+.nyc_output/
