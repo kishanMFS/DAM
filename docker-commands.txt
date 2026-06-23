@@ -1,0 +1,32 @@
+- get images
+docker pull nginx:1.31
+
+- get images list
+docker images
+
+- run image in container
+docker run nginx:1.31
+docker run -d nginx:1.31  // -d = for detached. runs internally and dont block terminal
+docker run -d -p 80:80 nginx:1.31  // -p = publish, host_port:container_port
+
+- see list of running container
+docker ps
+
+- stop container
+docker stop ContainerID
+
+- start a container
+docker start containerId
+
+- build image for apps
+docker build --no-cache -t node-app:1.0 . // -t = name:tag_name, . = indeicate cuurent dir from where this command runs to create image
+
+- remove container
+docker rm containerId_or_name
+
+- run image for app
+docker run -d -p 3002:3002 node-app:1.0 // host_port:container_port
+
+
+- docker compose
+docker compose up -d --build
