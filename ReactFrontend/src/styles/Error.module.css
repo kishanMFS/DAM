@@ -1,0 +1,21 @@
+.errorContainer {
+    padding: 5px;
+    background-color: white;
+    margin: 5px;
+}
+
+.errorMessageArea {
+    position: relative;
+}
+.errorBtn {
+    position: absolute;
+    right: -5px;
+    background-color: white;
+    border-style: none;
+    cursor: pointer;
+    top: -5px;
+}
+
+.errorBtn:hover{
+    color: aqua;
+}

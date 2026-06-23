@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ],
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    // "noEmit": true,
+    // "allowImportingTsExtensions": true
+  },
+  "exclude": ["node_modules", "dist"],
+  "include": ["src/**/*.test.ts", "src/**/*.spec.ts", "jest.setup.ts"]
+}

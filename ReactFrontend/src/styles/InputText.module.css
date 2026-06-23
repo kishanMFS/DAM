@@ -1,0 +1,12 @@
+.inputTextContainer {
+    display: flex;
+    flex-direction: column;
+}
+.errorMessage {
+    font-size: 1em;
+    color: red;
+    margin-top: 4px;
+}
+.inputField {
+    margin-bottom: 16px;
+}

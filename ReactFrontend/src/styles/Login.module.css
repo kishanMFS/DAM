@@ -1,0 +1,14 @@
+
+.loginContainer {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 20px;
+    line-height: normal;
+    display: flex;
+    flex-direction: column;
+}
+
+.loginBtn {
+    display: flex;
+    flex-direction: column;
+}

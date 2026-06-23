@@ -1,0 +1,41 @@
+.root {
+  background-color: #ccc;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  min-width: 100svh;
+  color: black;
+}
+
+.navBar {
+  background-color: aqua;
+  padding: 5px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.navItem {
+  text-decoration: none;
+  padding: 5px;
+}
+
+.navItem:hover {
+  background-color: antiquewhite;
+}
+
+.currentDateTime {
+  color: black;
+}
+
+@media (max-width: 350px) {
+  .navLinkList {
+    display: flex;
+    flex-direction: column;
+  }
+  .navItem {
+    display: flex;
+
+    position: relative;
+  }
+}
