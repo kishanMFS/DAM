@@ -1,70 +1,74 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { useState, useEffect } from "react";
 import useAuth from "../hooks/useAuth";
 import useErrorContext from "../hooks/useError";
 import Error from "./Error";
-import LayoutModuleCSS from "../styles/Layout.module.css";
 
-function NavBar() {
+function Layout() {
   const { logoutUser } = useAuth();
-  const [currentDateTime, setCurrentDateTime] = useState<string>(
+  const { errorMessage, closeError } = useErrorContext();
+
+  const [currentDateTime, setCurrentDateTime] = useState(
     new Date().toLocaleString(),
   );
-  const [currentDateTimeRunning, setCurrentDateTimeRunning] =
-    useState<boolean>(true);
-  const { errorMessage, closeError } = useErrorContext();
+  const [isRunning, setIsRunning] = useState(true);
+
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const interval = setInterval(() => {
+      setCurrentDateTime(new Date().toLocaleString());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isRunning]);
 
   const handleLogout = () => {
     logoutUser();
   };
 
-  useEffect(() => {
-    if (!currentDateTimeRunning) {
-      return;
-    }
-
-    const currentDatetimeIntervalId = setInterval(() => {
-      setCurrentDateTime(new Date().toLocaleString());
-    }, 900);
-    return () => clearInterval(currentDatetimeIntervalId);
-  }, [currentDateTimeRunning]);
-
-  function handleStartStopCurrentDateTime(hoverState: boolean) {
-    setCurrentDateTimeRunning(hoverState);
-  }
-
   return (
-    <div className={LayoutModuleCSS.root}>
-      <nav className={LayoutModuleCSS.navBar}>
-        <div className={LayoutModuleCSS.navLinkList}>
-          <NavLink to="/projects" className={LayoutModuleCSS.navItem}>
-            Project
-          </NavLink>
-          <NavLink
-            to=""
-            className={LayoutModuleCSS.navItem}
-            onClick={handleLogout}
+    <div className="min-h-screen bg-slate-50">
+      {/* Navbar */}
+      <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Logo / Title */}
+          <div className="text-xl font-bold text-slate-800">DAM Dashboard</div>
+
+          {/* Date Time */}
+          <div
+            className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700"
+            onMouseEnter={() => setIsRunning(false)}
+            onMouseLeave={() => setIsRunning(true)}
           >
-            Sign Out
-          </NavLink>
+            {currentDateTime}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleLogout}
+              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
-        <div
-          className={LayoutModuleCSS.currentDateTime}
-          onMouseEnter={() => handleStartStopCurrentDateTime(false)}
-          onMouseLeave={() => handleStartStopCurrentDateTime(true)}
-        >
-          {currentDateTime}
-        </div>
-      </nav>
-      <div>
-        <div>
+      </header>
+
+      {/* Error Message */}
+      {errorMessage && (
+        <div className="mx-auto mt-4 max-w-7xl px-4">
           <Error message={errorMessage} onClose={closeError} />
         </div>
+      )}
 
+      {/* Main Content */}
+      <main className="mx-auto max-w-7xl p-4 sm:p-6">
         <Outlet />
-      </div>
+      </main>
     </div>
   );
 }
 
-export default NavBar;
+export default Layout;

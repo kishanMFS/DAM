@@ -1,4 +1,5 @@
 import { Navigate, createBrowserRouter, Outlet } from "react-router-dom";
+import { Provider } from "react-redux";
 
 import Layout from "../components/Layout";
 import ProtectedRoute from "../components/ProtectedRoute";
@@ -10,18 +11,15 @@ import LoginPage from "../pages/Login";
 import MissingComponent from "../pages/MissingComponent";
 import RenderError from "../pages/Error";
 
-// import { ProjectContextProvider } from "../context/ProjectContext";
-// import { UserAuthContextProvider } from "../context/authenticationContext";
 import { ErrorContextProvider } from "../context/ErrorContext";
+import store from "../store/authStore";
 // import { lazy } from "react";
-
-// import LoginPage from "../pages/Login";
 
 // import AdminLayout from "../pages/AdminLayout";
 // import UserLayout from "../pages/UserLayout";
 
 import AdminDashboard from "../pages/AdminDashboard";
-// import UserDashboard from "../pages/UserDashboard";
+import UserDashboard from "../pages/UserDashboard";
 
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 const queryClient = new QueryClient({
@@ -61,21 +59,25 @@ const routes: routesType[] = [
     ),
     children: [
       {
-        path: "",
-        element: <Navigate to="/project" replace />,
+        path: "admin",
+        children: [
+          {
+            path: "dashboard",
+            element: <AdminDashboard />,
+          },
+        ],
+        element: undefined,
       },
       {
-        path: "dashboard",
-        element: <AdminDashboard />,
+        path: "user",
+        children: [
+          {
+            path: "dashboard",
+            element: <UserDashboard />,
+          },
+        ],
+        element: undefined,
       },
-      // {
-      //   path: "projects/:projectId",
-      //   element: <ProjectDetails />,
-      // },
-      // {
-      //   path: "projects/:projectId/files",
-      //   element: <ProjectFiles />,
-      // },
     ],
   },
   {
@@ -101,17 +103,15 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: (
-      <ErrorBoundaryWrapper>
-        <QueryClientProvider client={queryClient}>
-          <ErrorContextProvider>
-            {/* <UserAuthContextProvider> */}
-            {/* <ProjectContextProvider> */}
-            <Outlet />
-            {/* </ProjectContextProvider> */}
-            {/* </UserAuthContextProvider> */}
-          </ErrorContextProvider>
-        </QueryClientProvider>
-      </ErrorBoundaryWrapper>
+      <Provider store={store}>
+        <ErrorBoundaryWrapper>
+          <QueryClientProvider client={queryClient}>
+            <ErrorContextProvider>
+              <Outlet />
+            </ErrorContextProvider>
+          </QueryClientProvider>
+        </ErrorBoundaryWrapper>
+      </Provider>
     ),
     errorElement: <RenderError />,
     children: mapRoutes(routes),

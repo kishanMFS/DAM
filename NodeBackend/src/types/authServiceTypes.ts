@@ -1,7 +1,9 @@
 interface User {
-  user_id: string;
-  email_id: string;
-  password: string;
+  id: string;
+  email: string;
+  password_hash: string;
+  role_id: number;
+  name: '';
 }
 
 interface loginBody {
@@ -12,6 +14,11 @@ interface JwtPayload {
   id: string;
   emailId: string;
 }
+
+export type RoleType = {
+  id: number;
+  name: string;
+};
 
 import type { CookieOptions } from 'express';
 

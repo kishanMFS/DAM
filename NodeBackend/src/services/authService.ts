@@ -1,7 +1,7 @@
 import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 // import type { User } from '@/types/authServiceTypes.js';
-import { findUserByEmail } from '@/models/authModel.js';
+import { findUserByEmail, getUserType } from '@/models/authModel.js';
 import env from '@/config/env.js';
 import type { CookieOptions } from 'express';
 
@@ -26,20 +26,37 @@ interface UserJwtPayload extends JwtPayload {
 export const loginUser = async (
   emailId: string,
   password: string,
-): Promise<{ access_token: string; cookieOptions: cookieOptionsType } | null> => {
+): Promise<{
+  userData: { roleid: number; role: string };
+  access_token: string;
+  cookieOptions: cookieOptionsType;
+} | null> => {
   const user = await findUserByEmail(emailId);
+  const userData = {
+    roleid: 0,
+    role: '',
+  };
 
   if (!user) {
     return null;
   }
+
+  const userType = await getUserType(user.role_id);
+  if (!userType) {
+    return null;
+  }
+
+  userData.roleid = userType.id;
+  userData.role = userType.name;
+
   // bcrypt.hash('admin123', 10)
   // password was created using bcrypt with salt rounds of 10, so we need to compare the hashed password
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
   if (!isPasswordValid) {
     return null;
   }
 
-  const token = jwt.sign({ id: user.user_id, emailId: user.email_id }, JWT_SECRET, {
+  const token = jwt.sign({ id: user.id, emailId: user.email, role: userType.name }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
   const cookieOptions: cookieOptionsType = {
@@ -49,13 +66,14 @@ export const loginUser = async (
     maxAge: 3600000, // Cookie expiration in milliseconds (1 hour)
   };
 
-  return { access_token: token, cookieOptions };
+  return { access_token: token, userData, cookieOptions };
 };
 
 export const verifyToken = (token: string): { isValid: boolean; message: string } => {
   const result = {
     isValid: false,
     message: '',
+    role: '',
   };
   try {
     jwt.verify(token, JWT_SECRET, (err, decoded) => {
@@ -65,6 +83,7 @@ export const verifyToken = (token: string): { isValid: boolean; message: string 
         const user = decoded as UserJwtPayload;
         if (user.id !== undefined && user.emailId) {
           result.isValid = true;
+          result.role = user.role;
           result.message = 'Valid Token';
         } else {
           result.message = 'Invalid Token';
