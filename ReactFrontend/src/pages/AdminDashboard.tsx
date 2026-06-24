@@ -12,6 +12,8 @@ export default function AdminDashboard() {
 
         <div className="bg-white shadow rounded p-6">Storage Used</div>
       </div>
+
+      <UploadSection />
     </div>
   );
 }
