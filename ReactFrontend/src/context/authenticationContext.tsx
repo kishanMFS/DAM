@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { logoutUserService, verifyUserService } from "../services/authAPI";
+// import { logoutUserService, verifyUserService } from "../services/authAPI";
 import useXHR from "../hooks/useXHR";
 
 type UserAuthContextType = {

@@ -1,4 +1,5 @@
 import { defineConfig, loadEnv } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 // import EnvironmentPlugin from "vite-plugin-environment";
 // import { env } from "process";
@@ -8,7 +9,7 @@ export default ({ mode }) => {
 
   return defineConfig({
     // plugins: [react(), EnvironmentPlugin("all")],
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     base: process.env.VITE_BASE_PATH || "/",
     // define: {
     //   envWithProcessPrefix: {

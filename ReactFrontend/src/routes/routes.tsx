@@ -1,19 +1,41 @@
 import { Navigate, createBrowserRouter, Outlet } from "react-router-dom";
 
-import Login from "../pages/Login";
-import Projects from "../pages/Projects";
-import ProjectDetails from "../pages/ProjectDetails";
-import ProjectFiles from "../pages/ProjectFiles";
+import Layout from "../components/Layout";
+import ProtectedRoute from "../components/ProtectedRoute";
+import ErrorBoundaryWrapper from "../components/ErrorBoundaryWrapper";
+
+import LoginPage from "../pages/Login";
+// import Dashboard from "../pages/Dashboard";
+
 import MissingComponent from "../pages/MissingComponent";
 import RenderError from "../pages/Error";
 
-import Layout from "../components/Layout";
-import ProtectedRoute from "../components/ProtectedRoute";
-import { UserAuthContextProvider } from "../context/authenticationContext";
-import { ProjectContextProvider } from "../context/ProjectContext";
+// import { ProjectContextProvider } from "../context/ProjectContext";
+// import { UserAuthContextProvider } from "../context/authenticationContext";
 import { ErrorContextProvider } from "../context/ErrorContext";
-import ErrorBoundaryWrapper from "../components/ErrorBoundaryWrapper";
 // import { lazy } from "react";
+
+// import LoginPage from "../pages/Login";
+
+// import AdminLayout from "../pages/AdminLayout";
+// import UserLayout from "../pages/UserLayout";
+
+import AdminDashboard from "../pages/AdminDashboard";
+// import UserDashboard from "../pages/UserDashboard";
+
+import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 1000 * 60 * 5,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 export interface routesType {
   path: string;
@@ -28,7 +50,7 @@ const routes: routesType[] = [
   },
   {
     path: "login",
-    element: <Login />,
+    element: <LoginPage />,
   },
   {
     path: "",
@@ -43,17 +65,17 @@ const routes: routesType[] = [
         element: <Navigate to="/project" replace />,
       },
       {
-        path: "projects",
-        element: <Projects />,
+        path: "dashboard",
+        element: <AdminDashboard />,
       },
-      {
-        path: "projects/:projectId",
-        element: <ProjectDetails />,
-      },
-      {
-        path: "projects/:projectId/files",
-        element: <ProjectFiles />,
-      },
+      // {
+      //   path: "projects/:projectId",
+      //   element: <ProjectDetails />,
+      // },
+      // {
+      //   path: "projects/:projectId/files",
+      //   element: <ProjectFiles />,
+      // },
     ],
   },
   {
@@ -80,13 +102,15 @@ const router = createBrowserRouter([
     path: "/",
     element: (
       <ErrorBoundaryWrapper>
-        <ErrorContextProvider>
-          <UserAuthContextProvider>
-            <ProjectContextProvider>
-              <Outlet />
-            </ProjectContextProvider>
-          </UserAuthContextProvider>
-        </ErrorContextProvider>
+        <QueryClientProvider client={queryClient}>
+          <ErrorContextProvider>
+            {/* <UserAuthContextProvider> */}
+            {/* <ProjectContextProvider> */}
+            <Outlet />
+            {/* </ProjectContextProvider> */}
+            {/* </UserAuthContextProvider> */}
+          </ErrorContextProvider>
+        </QueryClientProvider>
       </ErrorBoundaryWrapper>
     ),
     errorElement: <RenderError />,
