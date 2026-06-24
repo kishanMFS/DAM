@@ -24,6 +24,19 @@ CREATE TABLE users
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+INSERT INTO users
+(
+    email, password_hash, salt, token_hash, role_id, is_active
+)
+VALUES ( 
+    'john@mail.com',
+    '$2b$10$Wfwo4zzXjzOJffFimGLGj.lulkSJvMiclNLu8nw7KXrqnsPvnRnc2',
+    '$2b$10$Wfwo4zzXjzOJffFimGLGj.',
+    '',
+    1,
+    true 
+);
+
 CREATE TABLE assets
 (
     id UUID PRIMARY KEY,

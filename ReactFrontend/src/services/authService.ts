@@ -12,6 +12,7 @@ export interface UserInfo {
 }
 
 export interface LoginResponse {
+  role: string;
   success: boolean;
   user: UserInfo;
 }

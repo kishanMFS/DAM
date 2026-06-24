@@ -1,7 +1,9 @@
 interface User {
-  user_id: string;
-  email_id: string;
-  password: string;
+  id: string;
+  email: string;
+  password_hash: string;
+  role_id: number;
+  name: '';
 }
 
 interface loginBody {

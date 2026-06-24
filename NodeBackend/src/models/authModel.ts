@@ -3,15 +3,29 @@ import type { User } from '@/types/authServiceTypes.js';
 
 export const findUserByEmail = async (emailId: string): Promise<User | null> => {
   const user = await db.oneOrNone<User>(
-    `   SELECT  user_id, email_id, password
-        FROM    tbl_users 
+    `   SELECT  id, email, password_hash, role_id
+        FROM    users 
         WHERE   1=1
-                AND email_id = $1
+                AND email = $1
                 AND is_active = true
-                AND is_deleted = false
         `,
     [emailId],
   );
 
   return user;
+};
+
+export const getUserType = async (roleId: number): Promise<null> => {
+  const userType = await db.oneOrNone(
+    `
+      SELECT  id,
+              name
+      FROM    roles
+      WHERE   1=1
+              AND id = $1
+    `,
+    [roleId],
+  );
+
+  return userType;
 };

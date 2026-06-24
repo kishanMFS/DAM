@@ -16,7 +16,6 @@ export default function LoginForm() {
     mutationFn: () => authService.login({ email, password }),
     onMutate: () => {},
     onSuccess: (data) => {
-      console.log(data);
       localStorage.setItem("role", data.user.role);
 
       if (data.user.role === "ADMIN") {
