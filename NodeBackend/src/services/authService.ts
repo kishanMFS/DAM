@@ -40,7 +40,12 @@ export const loginUser = async (
   if (!user) {
     return null;
   }
+
   const userType = await getUserType(user.role_id);
+  if (!userType) {
+    return null;
+  }
+
   userData.roleid = userType.id;
   userData.role = userType.name;
 
@@ -51,7 +56,7 @@ export const loginUser = async (
     return null;
   }
 
-  const token = jwt.sign({ id: user.id, emailId: user.email }, JWT_SECRET, {
+  const token = jwt.sign({ id: user.id, emailId: user.email, role: userType.name }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
   const cookieOptions: cookieOptionsType = {
@@ -68,6 +73,7 @@ export const verifyToken = (token: string): { isValid: boolean; message: string 
   const result = {
     isValid: false,
     message: '',
+    role: '',
   };
   try {
     jwt.verify(token, JWT_SECRET, (err, decoded) => {
@@ -77,6 +83,7 @@ export const verifyToken = (token: string): { isValid: boolean; message: string 
         const user = decoded as UserJwtPayload;
         if (user.id !== undefined && user.emailId) {
           result.isValid = true;
+          result.role = user.role;
           result.message = 'Valid Token';
         } else {
           result.message = 'Invalid Token';

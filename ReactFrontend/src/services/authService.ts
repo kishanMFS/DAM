@@ -6,6 +6,8 @@ export interface LoginRequest {
 }
 
 export interface UserInfo {
+  // [x: string]: boolean | UserInfo;
+  emailId: string | null;
   id: string;
   email: string;
   role: "ADMIN" | "USER";
@@ -27,7 +29,7 @@ const authService = {
 
   verifyToken: () =>
     apiClient<UserInfo>({
-      url: "/auth/verify-token",
+      url: "/auth/verify",
     }),
 
   logout: () =>

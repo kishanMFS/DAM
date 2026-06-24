@@ -15,6 +15,11 @@ interface JwtPayload {
   emailId: string;
 }
 
+export type RoleType = {
+  id: number;
+  name: string;
+};
+
 import type { CookieOptions } from 'express';
 
 type LoginResult = { access_token: string; cookieOptions: CookieOptions } | null;
