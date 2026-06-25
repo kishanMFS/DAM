@@ -17,7 +17,7 @@ export default function UploadSection() {
     files: UploadFileResponse[];
   }>({
     queryKey: ["files"],
-    url: "/api/assets",
+    url: "/assets",
     method: "GET",
     enabled: true,
   });

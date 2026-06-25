@@ -4,7 +4,7 @@ import env from '@/config/env.js';
 const isProd = env.isProd;
 let apiRateLimit = 100000;
 let authRateLimit = 100000;
-console.log(isProd);
+
 if (isProd) {
   apiRateLimit = 100; // Max 100 requests per IP
   authRateLimit = 10; // Stricter limit for login endpoint
