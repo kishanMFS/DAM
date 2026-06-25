@@ -2,7 +2,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { queryFn } from "../services/queryFn";
 
-export interface UseApiProps<TPayload = unknown, TParams = Record<string, []>> {
+export interface UseApiProps<
+  TPayload = unknown,
+  TParams extends Record<string, unknown> | undefined = undefined,
+> {
   queryKey?: string[];
   url: string;
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -11,7 +14,11 @@ export interface UseApiProps<TPayload = unknown, TParams = Record<string, []>> {
   enabled?: boolean;
 }
 
-export function useApi<TPayload = unknown, TParams = Record<string, []>>({
+export function useApi<
+  TResponse = unknown,
+  TPayload = unknown,
+  TParams extends Record<string, unknown> | undefined = undefined,
+>({
   queryKey = ["default"],
   url,
   method = "GET",
@@ -19,24 +26,24 @@ export function useApi<TPayload = unknown, TParams = Record<string, []>>({
   params,
   enabled = true,
 }: UseApiProps<TPayload, TParams>) {
-  const query = useQuery({
+  const query = useQuery<TResponse>({
     queryKey,
     queryFn: () =>
-      queryFn({
+      queryFn<TResponse, TPayload>({
         url,
         method,
-        payload,
+        body: payload,
         params,
       }),
     enabled: method === "GET" ? enabled : false,
   });
 
-  const mutation = useMutation({
-    mutationFn: (data?: T) =>
-      queryFn({
+  const mutation = useMutation<TResponse, unknown, TPayload | undefined>({
+    mutationFn: (data?: TPayload) =>
+      queryFn<TResponse, TPayload>({
         url,
         method,
-        payload: data ?? payload,
+        body: data ?? payload,
         params,
       }),
   });

@@ -1,3 +1,5 @@
+import UploadSection from "../components/UploadSection";
+
 export default function UserDashboard() {
   return (
     <div>
@@ -10,6 +12,8 @@ export default function UserDashboard() {
 
         <div className="bg-white rounded shadow p-6">Recent Files</div>
       </div>
+
+      <UploadSection />
     </div>
   );
 }

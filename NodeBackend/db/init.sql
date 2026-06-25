@@ -37,6 +37,19 @@ VALUES (
     true 
 );
 
+INSERT INTO users
+(
+    email, password_hash, salt, token_hash, role_id, is_active
+)
+VALUES ( 
+    'user@mail.com',
+    '$2b$10$Wfwo4zzXjzOJffFimGLGj.lulkSJvMiclNLu8nw7KXrqnsPvnRnc2',
+    '$2b$10$Wfwo4zzXjzOJffFimGLGj.',
+    '',
+    2,
+    true 
+);
+
 CREATE TABLE assets
 (
     id UUID PRIMARY KEY,

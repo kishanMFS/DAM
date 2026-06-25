@@ -1,3 +1,5 @@
+// import UploadSection from "../components/UploadSection";
+
 export default function AdminDashboard() {
   return (
     <div>
@@ -13,7 +15,7 @@ export default function AdminDashboard() {
         <div className="bg-white shadow rounded p-6">Storage Used</div>
       </div>
 
-      <UploadSection />
+      {/* <UploadSection /> */}
     </div>
   );
 }
