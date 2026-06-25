@@ -8,7 +8,7 @@ import helmet from 'helmet';
 
 const [unexpectedRequest, addErrorToRequestLog, globalErrorHandler] = errorHandler();
 import authRoutes from './routes/authRoutes.js';
-import userRoutes from './routes/userRoutes.js';
+// import userRoutes from './routes/userRoutes.js';
 import assetRoutes from './routes/assetRoutes.js';
 
 import corsOptions from './config/corsOptions.js';
@@ -37,7 +37,7 @@ app.use('/api', apiRateLimiter);
 
 // Routes
 app.use('/api/auth', authRateLimiter, authRoutes);
-app.use('/api/users', userRoutes);
+// app.use('/api/users', userRoutes);
 app.use('/api/assets', assetRoutes);
 
 // Error handling middleware

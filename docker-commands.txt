@@ -30,3 +30,21 @@ docker run -d -p 3002:3002 node-app:1.0 // host_port:container_port
 
 - docker compose
 docker compose up -d --build
+
+- get minio image
+docker pull quay.io/minio/aistor/minio:RELEASE.2026-06-06T02-44-06Z
+
+- run mino in docker
+docker run -dt                                             \
+  -p 9000:9000 -p 9001:9001                                \
+  -v "D:/learning projects/DAM/minio/data:/mnt/data"       \
+  -v "D:/learning projects/DAM//minio/minio.license:/minio.license" \
+  -v "D:/learning projects/DAM/minio/certs:/etc/minio/certs" \
+  --name "mino-server"                                     \
+  quay.io/minio/aistor/minio:latest minio server /mnt/data \
+  --license /minio.license
+  
+  
+- docker run -dt -p 9000:9000 -p 9001:9001 -v "D:/learning projects/DAM/minio/data:/mnt/data" -v "D:/learning projects/DAM//minio/minio.license:/minio.license" -v "D:/learning projects/DAM/minio/certs:/etc/minio/certs" --name "mino-server" quay.io/minio/aistor/minio:RELEASE.2026-06-06T02-44-06Z minio server /mnt/data --license /minio.license  
+
+- 

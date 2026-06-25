@@ -1,7 +1,13 @@
 import { useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import type { UploadFile } from "../types/fileTypes";
 import { useApi } from "../hooks/useAPI";
-import type { UploadFileResponse } from "../services/fileService";
+import fileService, {
+  //   type PresignedUrlRequest,
+  //   type PresignedUrlResponse,
+  type UploadFileResponse,
+} from "../services/fileService";
+import useErrorContext from "../hooks/useError";
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
 
@@ -12,23 +18,32 @@ export default function UploadSection() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch uploaded files from WinIO
+  // Fetch uploaded files
   const { data: fileListData, refetch: refetchFiles } = useApi<{
     files: UploadFileResponse[];
   }>({
-    queryKey: ["files"],
-    url: "/api/assets",
+    queryKey: ["getfiles"],
+    url: "/assets",
     method: "GET",
     enabled: true,
   });
 
-  const uploadedFiles = fileListData?.files ?? [];
+  const uploadedFiles = fileListData?.files ?? fileListData?.data ?? [];
 
-  // Handle file upload mutation
-  const { mutateAsync: uploadFileMutation, isPending: isUploading } = useApi({
-    url: "/api/assets/upload",
-    method: "POST",
+  const uploadFileMutation = useMutation({
+    mutationFn: async ({
+      presignedUrl,
+      file,
+      contentType,
+    }: {
+      presignedUrl: string;
+      file: File;
+      contentType: string;
+    }) => fileService.uploadFileToPresignedUrl(presignedUrl, file, contentType),
   });
+  const isUploading = uploadFileMutation.isPending;
+
+  const { showErrorMessage } = useErrorContext();
 
   const validateFile = (file: File) => {
     const validTypes = [
@@ -74,22 +89,61 @@ export default function UploadSection() {
   };
 
   const handleUpload = async () => {
-    for (const item of files) {
-      try {
-        setCurrentUploadId(item.id);
-        const formData = new FormData();
-        formData.append("file", item.file);
+    try {
+      const presignedUrls = await fileService.getPresignedUrls(
+        files.map((item) => ({
+          fileName: item.file.name,
+          mimeType: item.file.type,
+        })),
+      );
 
-        await uploadFileMutation(formData);
-      } catch (error) {
-        console.error("Upload failed:", error);
-      } finally {
-        setCurrentUploadId(null);
-      }
+      await Promise.all(
+        files.map((item, index) => {
+          const presigned = presignedUrls.data[index];
+
+          return uploadFileMutation.mutateAsync({
+            presignedUrl: presigned.presignedUrl,
+            file: item.file,
+            contentType: item.type,
+          });
+        }),
+      );
+
+      // build metadata to store in node
+      const metadata = presignedUrls.data.map((p, idx) => ({
+        objectName: p.objectName,
+        originalName: files[idx].file.name,
+        fileType: files[idx].file.type,
+        size: (files[idx].file.size / 1024 / 1024).toFixed(2) + " MB",
+      }));
+
+      await fileService.storeFilesMetadata(metadata);
+    } catch (error) {
+      const msg =
+        error && typeof error === "object" && "message" in error
+          ? (error as Error).message
+          : "Upload failed";
+      showErrorMessage(msg);
+    } finally {
+      setCurrentUploadId(null);
+      setFiles([]);
+      refetchFiles();
     }
+  };
 
-    setFiles([]);
-    refetchFiles();
+  const handleDownload = async (url: string, fileName: string, e) => {
+    e.preventDefault();
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
   };
 
   return (
@@ -198,25 +252,48 @@ export default function UploadSection() {
 
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
           {uploadedFiles.map((file) => (
-            <div key={file.id} className="bg-white border rounded-xl p-4">
-              {file.fileType.startsWith("image") ? (
+            <a
+              key={file.id}
+              //   href={file.downloadUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              download
+              className="group block bg-white border rounded-xl overflow-hidden shadow-sm transition hover:shadow-lg"
+            >
+              {file.mime_type.startsWith("image") ? (
                 <img
-                  src={file.url}
-                  className="h-40 w-full object-cover rounded"
+                  src={file.downloadUrl}
+                  alt={file.original_name}
+                  className="h-40 w-full object-cover rounded-t-xl transition duration-300 group-hover:scale-105"
                 />
               ) : (
-                <video
-                  src={file.url}
-                  controls
-                  className="h-40 w-full rounded"
-                />
+                <div className="h-40 w-full bg-slate-100 rounded-t-xl overflow-hidden">
+                  <video
+                    src={file.downloadUrl}
+                    controls
+                    className="h-full w-full object-cover"
+                  />
+                </div>
               )}
 
-              <div className="mt-3">
-                <p>{file.originalName}</p>
-                <p className="text-sm text-slate-500">{file.size}</p>
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-slate-900 truncate">
+                    {file.original_name}
+                  </p>
+                  <span
+                    className="text-xs font-semibold uppercase cursor-pointer tracking-wide text-blue-600"
+                    onClick={(e) =>
+                      handleDownload(file.downloadUrl, file.original_name, e)
+                    }
+                  >
+                    Download
+                  </span>
+                </div>
+                <p className="text-sm text-slate-500">{file.file_size}</p>
+                <p className="text-sm text-slate-500">{file.mime_type}</p>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       </div>

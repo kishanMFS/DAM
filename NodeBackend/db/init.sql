@@ -55,7 +55,7 @@ CREATE TABLE assets
     id UUID PRIMARY KEY,
     original_name VARCHAR(500),
     mime_type VARCHAR(255),
-    file_size BIGINT,
+    file_size VARCHAR(255),
     storage_key TEXT,
     thumbnail_key TEXT,
     status VARCHAR(50),

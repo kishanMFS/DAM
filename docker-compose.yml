@@ -2,7 +2,7 @@ services:
 
   frontend:
     build:
-      context: ./ProjectManagementReact
+      context: ./ReactFrontend
 
     ports:
       - "80:80"
@@ -11,13 +11,13 @@ services:
       - backend
 
   backend:
-    build: ./ProjectManagementNode
+    build: ./NodeBackend
 
     ports:
       - "3002:3002"
       
     env_file:
-      - ./ProjectManagementNode/.env.production
+      - ./NodeBackend/.env.production
 
     environment:
       DB_HOST: postgres
@@ -25,7 +25,7 @@ services:
       DB_NAME: Projectmanagement
       DB_USER: admin
       DB_PASSWORD: Admin123
-      DB_URL: postgres://admin:Admin123@postgres:5432/Projectmanagement
+      DB_URL: postgres://admin:Admin123@postgres:5432/dam
 
     depends_on:
       - postgres
@@ -34,7 +34,7 @@ services:
     image: postgres:17-alpine
 
     environment:
-      POSTGRES_DB: Projectmanagement
+      POSTGRES_DB: dam
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: Admin123
 
@@ -44,9 +44,25 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      
+  minio:
+    image: quay.io/minio/aistor/minio:RELEASE.2026-06-06T02-44-06Z
+    container_name: minio-server
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=devadmin
+      - MINIO_ROOT_PASSWORD=devpassword123
+    volumes:
+      - minio_data:/data
+    command: server --console-address ":9001" /data
+    #env_file: .env_production
+    restart: always
 
 volumes:
   postgres_data:
+  minio_data:
   
   
  
