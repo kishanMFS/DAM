@@ -1,7 +1,12 @@
 import { useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import type { UploadFile } from "../types/fileTypes";
 import { useApi } from "../hooks/useAPI";
-import type { UploadFileResponse } from "../services/fileService";
+import fileService, {
+  //   type PresignedUrlRequest,
+  //   type PresignedUrlResponse,
+  type UploadFileResponse,
+} from "../services/fileService";
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
 
@@ -12,11 +17,11 @@ export default function UploadSection() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch uploaded files from WinIO
+  // Fetch uploaded files from minIO
   const { data: fileListData, refetch: refetchFiles } = useApi<{
     files: UploadFileResponse[];
   }>({
-    queryKey: ["files"],
+    queryKey: ["getfiles"],
     url: "/assets",
     method: "GET",
     enabled: true,
@@ -24,11 +29,19 @@ export default function UploadSection() {
 
   const uploadedFiles = fileListData?.files ?? [];
 
-  // Handle file upload mutation
-  const { mutateAsync: uploadFileMutation, isPending: isUploading } = useApi({
-    url: "/api/assets/upload",
-    method: "POST",
+  const uploadFileMutation = useMutation({
+    mutationFn: async ({
+      presignedUrl,
+      file,
+      contentType,
+    }: {
+      presignedUrl: string;
+      file: File;
+      contentType: string;
+    }) => fileService.uploadFileToPresignedUrl(presignedUrl, file, contentType),
   });
+
+  const isUploading = uploadFileMutation.isLoading;
 
   const validateFile = (file: File) => {
     const validTypes = [
@@ -74,22 +87,31 @@ export default function UploadSection() {
   };
 
   const handleUpload = async () => {
-    for (const item of files) {
-      try {
-        setCurrentUploadId(item.id);
-        const formData = new FormData();
-        formData.append("file", item.file);
+    try {
+      const presignedUrls = await fileService.getPresignedUrls(
+        files.map((item) => ({
+          fileName: item.file.name,
+          mimeType: item.file.type,
+        })),
+      );
 
-        await uploadFileMutation(formData);
-      } catch (error) {
-        console.error("Upload failed:", error);
-      } finally {
-        setCurrentUploadId(null);
-      }
+      await Promise.all(
+        files.map((item, index) => {
+          const presigned = presignedUrls[index];
+          return uploadFileMutation.mutateAsync({
+            presignedUrl: presigned.presignedUrl,
+            file: item.file,
+            contentType: item.type,
+          });
+        }),
+      );
+    } catch (error) {
+      console.error("Upload failed:", error);
+    } finally {
+      setCurrentUploadId(null);
+      setFiles([]);
+      refetchFiles();
     }
-
-    setFiles([]);
-    refetchFiles();
   };
 
   return (

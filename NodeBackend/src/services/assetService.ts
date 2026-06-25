@@ -10,9 +10,12 @@ import type {
 // import path from 'path';
 // import * as archiver from 'archiver';
 import * as assetModel from '@/models/assetModel.js';
+import minioClient from '../utils/minioClient.js';
+import crypto from 'crypto';
 // import env from '@/config/env.js';
 
 // const isProd = env.isProd;
+const BUCKET_NAME = 'dam-assets';
 
 // export const createProjectService = async (projectData: Project): Promise<ProjectModelType> => {
 //   const result = await createProject(projectData);
@@ -26,6 +29,40 @@ export const getAssetsService = async (userid: string): Promise<ApiResponse<Asse
     message: result.message,
     data: result.Assets,
   };
+};
+
+export const getPresignedURLService = async (
+  files: {
+    fileName: string;
+    mimeType: string;
+  }[],
+): Promise<ApiResponse> => {
+  const result: ApiResponse = {
+    success: false,
+    message: '',
+    data: [],
+  };
+
+  const presignedFiles = await Promise.all(
+    files.map(async (file) => {
+      const objectName = `${Date.now()}-${crypto.randomUUID()}-${file.fileName}`;
+
+      const presignedURL = await minioClient.presignedPutObject(BUCKET_NAME, objectName, 60 * 10);
+
+      return {
+        fileName: file.fileName,
+        mimeType: file.mimeType,
+        objectName,
+        presignedURL,
+      };
+    }),
+  );
+
+  result.success = true;
+  result.message = 'Successfully created presigned URLs';
+  result.data = presignedFiles;
+
+  return result;
 };
 
 // export const getProjectByIdService = async (id: string): Promise<ApiResponse<Project>> => {
