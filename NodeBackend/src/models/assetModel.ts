@@ -1,5 +1,6 @@
 import db from '@/utils/db.js';
 import type { Asset } from '@/types/assetTypes.js';
+// import { UUID } from 'crypto';
 
 // import { User } from '@/types/authServiceTypes.js';
 
@@ -83,27 +84,44 @@ export const getAssets = async (userid: string) => {
 //   return result;
 // };
 
-// const updateProject = async (id: string, projectData: Project) => {
-//   const result = {
-//     success: false,
-//     project: null as Project | null,
-//     message: '',
-//   };
+export const insertAssetDetails = async (files: [], userid: string) => {
+  const result = {
+    success: false,
 
-//   await db.oneOrNone(
-//     `
-//       UPDATE  tbl_projects
-//       SET     projectName = $1
-//               AND project_description = $2
-//     `,
-//     [projectData.projectname, projectData.description],
-//   );
+    message: '',
+  };
 
-//   result.success = true;
-//   result.message = 'project updated successfully';
+  const values: string[] = [];
+  const params: unknown[] = [];
 
-//   return result;
-// };
+  files.forEach((file, index) => {
+    const i = index * 5;
+
+    values.push(`($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5})`);
+
+    params.push(file.objectName, file.originalName, file.fileType, file.size, userid);
+  });
+
+  await db.none(
+    `
+      INSERT INTO assets
+      (
+        storage_key,
+        original_name,
+        mime_type,
+        file_size,
+        uploaded_by
+      )
+      VALUES ${values.join(',')}
+    `,
+    params,
+  );
+
+  result.success = true;
+  result.message = 'assets details uploaded successfully';
+
+  return result;
+};
 
 // const deleteProject = async (projectID: string) => {
 //   const result = {

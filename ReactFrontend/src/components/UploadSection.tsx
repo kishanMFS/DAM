@@ -7,6 +7,7 @@ import fileService, {
   //   type PresignedUrlResponse,
   type UploadFileResponse,
 } from "../services/fileService";
+import useErrorContext from "../hooks/useError";
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
 
@@ -17,7 +18,7 @@ export default function UploadSection() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch uploaded files from minIO
+  // Fetch uploaded files
   const { data: fileListData, refetch: refetchFiles } = useApi<{
     files: UploadFileResponse[];
   }>({
@@ -27,7 +28,7 @@ export default function UploadSection() {
     enabled: true,
   });
 
-  const uploadedFiles = fileListData?.files ?? [];
+  const uploadedFiles = fileListData?.files ?? fileListData?.data ?? [];
 
   const uploadFileMutation = useMutation({
     mutationFn: async ({
@@ -40,8 +41,9 @@ export default function UploadSection() {
       contentType: string;
     }) => fileService.uploadFileToPresignedUrl(presignedUrl, file, contentType),
   });
+  const isUploading = uploadFileMutation.isPending;
 
-  const isUploading = uploadFileMutation.isLoading;
+  const { showErrorMessage } = useErrorContext();
 
   const validateFile = (file: File) => {
     const validTypes = [
@@ -97,7 +99,8 @@ export default function UploadSection() {
 
       await Promise.all(
         files.map((item, index) => {
-          const presigned = presignedUrls[index];
+          const presigned = presignedUrls.data[index];
+
           return uploadFileMutation.mutateAsync({
             presignedUrl: presigned.presignedUrl,
             file: item.file,
@@ -105,13 +108,42 @@ export default function UploadSection() {
           });
         }),
       );
+
+      // build metadata to store in node
+      const metadata = presignedUrls.data.map((p, idx) => ({
+        objectName: p.objectName,
+        originalName: files[idx].file.name,
+        fileType: files[idx].file.type,
+        size: (files[idx].file.size / 1024 / 1024).toFixed(2) + " MB",
+      }));
+
+      await fileService.storeFilesMetadata(metadata);
     } catch (error) {
-      console.error("Upload failed:", error);
+      const msg =
+        error && typeof error === "object" && "message" in error
+          ? (error as Error).message
+          : "Upload failed";
+      showErrorMessage(msg);
     } finally {
       setCurrentUploadId(null);
       setFiles([]);
       refetchFiles();
     }
+  };
+
+  const handleDownload = async (url: string, fileName: string, e) => {
+    e.preventDefault();
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
   };
 
   return (
@@ -220,25 +252,48 @@ export default function UploadSection() {
 
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
           {uploadedFiles.map((file) => (
-            <div key={file.id} className="bg-white border rounded-xl p-4">
-              {file.fileType.startsWith("image") ? (
+            <a
+              key={file.id}
+              //   href={file.downloadUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              download
+              className="group block bg-white border rounded-xl overflow-hidden shadow-sm transition hover:shadow-lg"
+            >
+              {file.mime_type.startsWith("image") ? (
                 <img
-                  src={file.url}
-                  className="h-40 w-full object-cover rounded"
+                  src={file.downloadUrl}
+                  alt={file.original_name}
+                  className="h-40 w-full object-cover rounded-t-xl transition duration-300 group-hover:scale-105"
                 />
               ) : (
-                <video
-                  src={file.url}
-                  controls
-                  className="h-40 w-full rounded"
-                />
+                <div className="h-40 w-full bg-slate-100 rounded-t-xl overflow-hidden">
+                  <video
+                    src={file.downloadUrl}
+                    controls
+                    className="h-full w-full object-cover"
+                  />
+                </div>
               )}
 
-              <div className="mt-3">
-                <p>{file.originalName}</p>
-                <p className="text-sm text-slate-500">{file.size}</p>
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-slate-900 truncate">
+                    {file.original_name}
+                  </p>
+                  <span
+                    className="text-xs font-semibold uppercase cursor-pointer tracking-wide text-blue-600"
+                    onClick={(e) =>
+                      handleDownload(file.downloadUrl, file.original_name, e)
+                    }
+                  >
+                    Download
+                  </span>
+                </div>
+                <p className="text-sm text-slate-500">{file.file_size}</p>
+                <p className="text-sm text-slate-500">{file.mime_type}</p>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       </div>

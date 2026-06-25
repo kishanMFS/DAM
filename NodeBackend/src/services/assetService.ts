@@ -2,6 +2,7 @@ import type {
   Asset,
   // ProjectModelType,
   ApiResponse,
+  AssetFile,
   // ProjectJob,
   // UploadedFile,
 } from '@/types/assetTypes.js';
@@ -24,6 +25,17 @@ const BUCKET_NAME = 'dam-assets';
 
 export const getAssetsService = async (userid: string): Promise<ApiResponse<Asset[]>> => {
   const result = await assetModel.getAssets(userid);
+  if (result.success) {
+    const filesWithUrls = await Promise.all(
+      result.Assets.map(async (asset) => ({
+        ...asset,
+        downloadUrl: await minioClient.presignedGetObject(BUCKET_NAME, asset.storage_key, 60 * 60),
+      })),
+    );
+
+    result.Assets = filesWithUrls;
+  }
+
   return {
     success: result.success,
     message: result.message,
@@ -47,13 +59,13 @@ export const getPresignedURLService = async (
     files.map(async (file) => {
       const objectName = `${Date.now()}-${crypto.randomUUID()}-${file.fileName}`;
 
-      const presignedURL = await minioClient.presignedPutObject(BUCKET_NAME, objectName, 60 * 10);
+      const presignedUrl = await minioClient.presignedPutObject(BUCKET_NAME, objectName, 60 * 10);
 
       return {
         fileName: file.fileName,
         mimeType: file.mimeType,
         objectName,
-        presignedURL,
+        presignedUrl,
       };
     }),
   );
@@ -74,13 +86,13 @@ export const getPresignedURLService = async (
 //   };
 // };
 
-// export const updateProjectService = async (
-//   id: string,
-//   projectData: Project,
-// ): Promise<ApiResponse<Project>> => {
-//   const result = await updateProject(id, projectData);
-//   return result;
-// };
+export const uploadAssetDetailsService = async (
+  files: AssetFile[],
+  userid: string,
+): Promise<ApiResponse> => {
+  const result = await assetModel.insertAssetDetails(files, userid);
+  return result;
+};
 
 // export const deleteProjectService = async (projectID: string): Promise<ApiResponse<Project>> => {
 //   const result = await deleteProject(projectID);

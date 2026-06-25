@@ -5,7 +5,7 @@ export interface UploadFileResponse {
   originalName: string;
   fileType: string;
   size: string;
-  url: string;
+  downloadUrl: string;
 }
 
 export interface FileListResponse {
@@ -43,6 +43,20 @@ const fileService = {
   getPresignedUrls: async (files: PresignedUrlRequest[]) =>
     apiClient<PresignedUrlResponse[]>({
       url: "/assets/presigned-url",
+      method: "POST",
+      body: { files },
+    }),
+
+  storeFilesMetadata: async (
+    files: {
+      objectName: string;
+      originalName: string;
+      fileType: string;
+      size: string;
+    }[],
+  ) =>
+    apiClient<UploadFileResponse[]>({
+      url: "/assets",
       method: "POST",
       body: { files },
     }),
