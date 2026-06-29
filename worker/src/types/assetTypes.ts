@@ -26,8 +26,9 @@ export interface AssetFile {
 }
 
 export interface MediaTask {
-  objectName: string;
-  bucket: string;
-  fileType: string;
-  userid: string;
+    
+    objectName: string;
+    bucket: string;
+    fileType: string;
+    userid: string;
 }

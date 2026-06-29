@@ -7,11 +7,9 @@ import type {
   // UploadedFile,
 } from '@/types/assetTypes.js';
 // import fs from 'fs/promises';
-// import * as fsSync from 'fs';
-// import path from 'path';
-// import * as archiver from 'archiver';
+import sendTask from '../utils/producer.js';
 import * as assetModel from '@/models/assetModel.js';
-import minioClient from '../utils/minioClient.js';
+import { minio } from '../utils/minio.js';
 import crypto from 'crypto';
 // import env from '@/config/env.js';
 
@@ -29,7 +27,7 @@ export const getAssetsService = async (userid: string): Promise<ApiResponse<Asse
     const filesWithUrls = await Promise.all(
       result.Assets.map(async (asset) => ({
         ...asset,
-        downloadUrl: await minioClient.presignedGetObject(BUCKET_NAME, asset.storage_key, 60 * 60),
+        downloadUrl: await minio.presignedGetObject(BUCKET_NAME, asset.storage_key, 60 * 60),
       })),
     );
 
@@ -59,7 +57,7 @@ export const getPresignedURLService = async (
     files.map(async (file) => {
       const objectName = `${Date.now()}-${crypto.randomUUID()}-${file.fileName}`;
 
-      const presignedUrl = await minioClient.presignedPutObject(BUCKET_NAME, objectName, 60 * 10);
+      const presignedUrl = await minio.presignedPutObject(BUCKET_NAME, objectName, 60 * 10);
 
       return {
         fileName: file.fileName,
@@ -91,104 +89,20 @@ export const uploadAssetDetailsService = async (
   userid: string,
 ): Promise<ApiResponse> => {
   const result = await assetModel.insertAssetDetails(files, userid);
+
+  // get files from minIO and send to rabbitMQ for processing
+  for (const file of files) {
+    // console.log(file)
+    await sendTask({
+      objectName: file.objectName,
+      bucket: BUCKET_NAME,
+      fileType: file.fileType,
+      userid,
+    });
+  }
+
   return result;
 };
-
-// export const deleteProjectService = async (projectID: string): Promise<ApiResponse<Project>> => {
-//   const result = await deleteProject(projectID);
-//   return result;
-// };
-
-// export const getProjectFilesService = async (projectID: string): Promise<ApiResponse> => {
-//   const result = await getProjectFiles(projectID);
-//   return {
-//     success: result.success,
-//     message: result.message,
-//     data: result.files,
-//   };
-// };
-
-// export const uploadFilesToProjectService = async (
-//   projectID: string,
-//   files: Express.Multer.File[],
-// ): Promise<ApiResponse> => {
-//   const uploadedFiles: UploadedFile[] = [];
-//   const filesDir = path.join(process.cwd(), 'files');
-//   const result: {
-//     success: boolean;
-//     message: string;
-//     project_id: string;
-//     data: {
-//       project_id: string;
-//       files: UploadedFile[];
-//     };
-//   } = {
-//     success: false,
-//     message: '',
-//     project_id: projectID,
-//     data: {
-//       project_id: '',
-//       files: [],
-//     },
-//   };
-
-//   await fs.mkdir(filesDir, { recursive: true });
-
-//   for (const file of files) {
-//     const filekey = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-
-//     const extension = path.extname(file.originalname);
-
-//     const filename = `${filekey}${extension}`;
-
-//     const uploadPath = path.join(process.cwd(), 'files', filename);
-
-//     await fs.writeFile(uploadPath, file.buffer);
-
-//     const dbResult = await uploadFilesToProject(
-//       projectID,
-//       file.originalname,
-//       filename,
-//       file.mimetype,
-//       file.size,
-//     );
-
-//     uploadedFiles.push({
-//       fileId: dbResult.files!.projectfileid,
-//       name: file.originalname,
-//       size: file.size,
-//       type: file.mimetype,
-//       cdt: dbResult.files!.cdt,
-//     });
-//   }
-
-//   result.success = true;
-//   result.message = 'Files uploaded successfully';
-//   result.data = {
-//     project_id: projectID,
-//     files: uploadedFiles,
-//   };
-
-//   return result;
-// };
-
-// export const deleteProjectFilesService = async (
-//   projectID: string,
-//   fileID: string,
-// ): Promise<ApiResponse<Project>> => {
-//   const result = await deleteProjectFiles(projectID, fileID);
-
-//   if (result.success) {
-//     const filePath = path.join(process.cwd(), 'files', result.projectfilekey);
-//     try {
-//       await fs.unlink(filePath);
-//     } catch (error: unknown) {
-//       result.message = (error as Error).message;
-//     }
-//   }
-
-//   return result;
-// };
 
 // import { Worker } from 'worker_threads';
 
@@ -292,43 +206,4 @@ export const uploadAssetDetailsService = async (
 //       status: createJobresult.jobs.status,
 //     },
 //   };
-// };
-
-// export const getJobsStatusService = async (
-//   projectID: string,
-// ): Promise<ApiResponse<ProjectJob[]>> => {
-//   const result = await getJobsStatus(projectID);
-//   return {
-//     success: result.success,
-//     message: result.message,
-//     data: result.jobs,
-//   };
-// };
-
-// export const downloadZipService = async (
-//   projectId: string,
-//   fileName: string,
-// ): Promise<ProjectModelType> => {
-//   try {
-//     const filePath = path.join(process.cwd(), 'files', fileName);
-
-//     if (!fsSync.existsSync(filePath)) {
-//       return {
-//         success: false,
-//         message: 'Zip file not found',
-//       };
-//     }
-
-//     return {
-//       success: true,
-//       message: 'File found',
-//       filePath,
-//       fileName,
-//     };
-//   } catch (error) {
-//     return {
-//       success: false,
-//       message: (error as Error).message,
-//     };
-//   }
 // };

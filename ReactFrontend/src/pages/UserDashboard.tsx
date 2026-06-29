@@ -1,6 +1,6 @@
 import UploadSection from "../components/UploadSection";
 
-export default function UserDashboard() {
+function UserDashboard() {
   return (
     <div>
       {/* <h1 className="text-3xl font-bold">My Assets</h1>
@@ -17,3 +17,5 @@ export default function UserDashboard() {
     </div>
   );
 }
+
+export default UserDashboard;

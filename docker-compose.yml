@@ -59,6 +59,13 @@ services:
     command: server --console-address ":9001" /data
     #env_file: .env_production
     restart: always
+    
+ worker:
+    build: ./worker
+    env_file:
+      - ./worker/.env.production
+ depends_on:
+      - postgres
 
 volumes:
   postgres_data:

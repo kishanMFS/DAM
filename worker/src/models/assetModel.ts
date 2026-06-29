@@ -1,5 +1,5 @@
-import db from '@/utils/db.js';
-import type { Asset, AssetFile } from '@/types/assetTypes.js';
+import db from '../utils/db.js';
+import type { Asset, AssetFile } from '../types/assetTypes.js';
 // import { UUID } from 'crypto';
 
 // import { User } from '@/types/authServiceTypes.js';

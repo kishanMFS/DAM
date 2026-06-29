@@ -47,4 +47,6 @@ docker run -dt                                             \
   
 - docker run -dt -p 9000:9000 -p 9001:9001 -v "D:/learning projects/DAM/minio/data:/mnt/data" -v "D:/learning projects/DAM//minio/minio.license:/minio.license" -v "D:/learning projects/DAM/minio/certs:/etc/minio/certs" --name "mino-server" quay.io/minio/aistor/minio:RELEASE.2026-06-06T02-44-06Z minio server /mnt/data --license /minio.license  
 
-- 
+run rabbitmq
+- docker run -d --name rabbitmq-server -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+

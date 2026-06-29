@@ -67,7 +67,6 @@ export const uploadAssetDetails = async (req: Request, res: Response): Promise<v
       res.status(401).json(uploadAssetDetailsResponse);
       return;
     }
-
     res.status(200).json(uploadAssetDetailsResponse);
   } catch (error) {
     let errorMessage = 'Error updating assets details';
