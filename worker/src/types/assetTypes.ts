@@ -1,4 +1,13 @@
+import { UUID } from "crypto";
+
 export interface Asset {
+  originalName: string;
+  objectName: string;
+  assetType: string;
+  mimeType: string;
+  fileSize: string;
+  bucketName: string;
+  createdBy: Date;
   storage_key: string;
   project_id: string;
   projectname: string;
@@ -15,22 +24,25 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface AssetFile {
-  originalName: unknown;
   assetId: number;
   storage_key: string;
   mimeType: string;
   objectName: string;
-  original_name: string;
+  originalName: string;
   fileType: string;
   size: string;
   downloadUrl?: string;
 }
 
 export interface MediaTask {
-  objectName: string;
-  original_name: string;
-  bucket: string;
-  fileType: string;
-  userid: string;
-  fileid: string;
+    fileid: UUID;
+    original_name: string;
+    originalName: string;
+    fileSize: string;
+    bucketName: string;
+    id: UUID;
+    objectName: string;
+    bucket: string;
+    fileType: string;
+    userid: string;
 }
