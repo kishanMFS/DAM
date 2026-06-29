@@ -1,12 +1,4 @@
-import type {
-  Asset,
-  // ProjectModelType,
-  ApiResponse,
-  AssetFile,
-  // ProjectJob,
-  // UploadedFile,
-} from '@/types/assetTypes.js';
-// import fs from 'fs/promises';
+import type { Asset, ApiResponse, AssetFile } from '@/types/assetTypes.js';
 import sendTask from '../utils/producer.js';
 import * as assetModel from '@/models/assetModel.js';
 import { minio } from '../utils/minio.js';
@@ -15,11 +7,6 @@ import crypto from 'crypto';
 
 // const isProd = env.isProd;
 const BUCKET_NAME = 'dam-assets';
-
-// export const createProjectService = async (projectData: Project): Promise<ProjectModelType> => {
-//   const result = await createProject(projectData);
-//   return result;
-// };
 
 export const getAssetsService = async (userid: string): Promise<ApiResponse<Asset[]>> => {
   const result = await assetModel.getAssets(userid);
@@ -75,15 +62,6 @@ export const getPresignedURLService = async (
   return result;
 };
 
-// export const getProjectByIdService = async (id: string): Promise<ApiResponse<Project>> => {
-//   const result = await getProjectById(id);
-//   return {
-//     success: result.success,
-//     message: result.message,
-//     data: result.project ?? undefined,
-//   };
-// };
-
 export const uploadAssetDetailsService = async (
   files: AssetFile[],
   userid: string,
@@ -92,8 +70,9 @@ export const uploadAssetDetailsService = async (
 
   // get files from minIO and send to rabbitMQ for processing
   for (const file of files) {
-    // console.log(file)
-    await sendTask({
+    sendTask({
+      fileid: result.data.id,
+      original_name: result.data.original_name,
       objectName: file.objectName,
       bucket: BUCKET_NAME,
       fileType: file.fileType,

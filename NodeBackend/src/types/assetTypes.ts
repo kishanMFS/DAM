@@ -15,11 +15,12 @@ export interface ApiResponse<T = unknown> {
 }
 
 export interface AssetFile {
+  originalName: unknown;
   assetId: number;
   storage_key: string;
   mimeType: string;
   objectName: string;
-  originalName: string;
+  original_name: string;
   fileType: string;
   size: string;
   downloadUrl?: string;
@@ -27,7 +28,9 @@ export interface AssetFile {
 
 export interface MediaTask {
   objectName: string;
+  original_name: string;
   bucket: string;
   fileType: string;
   userid: string;
+  fileid: string;
 }

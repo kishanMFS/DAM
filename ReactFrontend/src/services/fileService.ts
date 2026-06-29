@@ -1,11 +1,15 @@
 import { apiClient } from "./apiClient";
 
 export interface UploadFileResponse {
+  original_name: string;
   id: string;
   originalName: string;
   fileType: string;
   size: string;
   downloadUrl: string;
+  parentId?: string;
+  status?: "pending" | "processing" | "complete" | "error";
+  progress?: number;
 }
 
 export interface FileListResponse {
@@ -20,6 +24,7 @@ export interface PresignedUrlRequest {
 export interface PresignedUrlResponse {
   objectName: string;
   presignedUrl: string;
+  data: object;
 }
 
 const fileService = {

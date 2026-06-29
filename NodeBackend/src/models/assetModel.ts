@@ -1,5 +1,6 @@
 import db from '@/utils/db.js';
 import type { Asset, AssetFile } from '@/types/assetTypes.js';
+// import { randomUUID } from 'crypto';
 // import { UUID } from 'crypto';
 
 // import { User } from '@/types/authServiceTypes.js';
@@ -46,6 +47,7 @@ export const getAssets = async (userid: string) => {
         FROM    assets
         WHERE   1=1
                 AND uploaded_by = $1
+        ORDER BY id DESC
     `,
     [userid],
   );
@@ -57,37 +59,13 @@ export const getAssets = async (userid: string) => {
   return result;
 };
 
-// const getProjectById = async (id: string) => {
-//   const result = {
-//     success: false,
-//     project: null as Project | null,
-//     message: '',
-//   };
-
-//   const project = await db.oneOrNone<Project>(
-//     `   SELECT  *
-//         FROM    tbl_projects
-//         WHERE   1=1
-//                 AND id = $1
-//                 AND is_active = true
-//                 AND is_deleted = false
-//     `,
-//     [id],
-//   );
-
-//   if (project) {
-//     result.success = true;
-//     result.message = 'Project fetched successfully';
-//     result.project = project;
-//   }
-
-//   return result;
-// };
-
 export const insertAssetDetails = async (files: AssetFile[], userid: string) => {
   const result = {
     success: false,
-
+    data: {
+      id: '',
+      original_name: '',
+    },
     message: '',
   };
 
@@ -102,7 +80,7 @@ export const insertAssetDetails = async (files: AssetFile[], userid: string) => 
     params.push(file.objectName, file.originalName, file.fileType, file.size, userid);
   });
 
-  await db.none(
+  const insertAssetDetailsResult = await db.oneOrNone(
     `
       INSERT INTO assets
       (
@@ -113,12 +91,17 @@ export const insertAssetDetails = async (files: AssetFile[], userid: string) => 
         uploaded_by
       )
       VALUES ${values.join(',')}
+      RETURNING *
     `,
     params,
   );
 
-  result.success = true;
-  result.message = 'assets details uploaded successfully';
+  if (insertAssetDetailsResult) {
+    result.data.id = insertAssetDetailsResult.id;
+    result.data.original_name = insertAssetDetailsResult.original_name;
+    result.success = true;
+    result.message = 'assets details uploaded successfully';
+  }
 
   return result;
 };
@@ -142,31 +125,6 @@ export const insertAssetDetails = async (files: AssetFile[], userid: string) => 
 //   result.success = true;
 //   result.message = 'Project deleted successfully';
 
-//   return result;
-// };
-
-// const getProjectFiles = async (projectID: string) => {
-//   const result = {
-//     success: false,
-//     files: {},
-//     message: '',
-//   };
-//   const projectsFiles = await db.manyOrNone<fileType>(
-//     `   SELECT  projectfilename as name,
-//                 projectfilesize as size,
-//                 projectfileid,
-//                 TO_CHAR(cdt, 'DD/MM/YYYY') as uploadedDate
-//         FROM    tbl_projectsFiles
-//         WHERE   1=1
-//                 AND project_id = $1
-//     `,
-//     [projectID],
-//   );
-//   if (projectsFiles) {
-//     result.success = true;
-//     result.message = 'Project files fetched successfully';
-//     result.files = projectsFiles;
-//   }
 //   return result;
 // };
 

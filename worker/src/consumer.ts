@@ -30,11 +30,6 @@ const startWorker = async (): Promise<void> => {
             if (msg !== null) {
                 const task = JSON.parse(msg.content.toString());
 
-                console.log(task)
-                // if(!task.objectName) {
-                //     channel.ack(msg); 
-                //     return;
-                // }
                 // Simulate processing/business logic
                 setTimeout(async () => {
 
