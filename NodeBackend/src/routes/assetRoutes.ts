@@ -1,6 +1,11 @@
 import express from 'express';
 import type { Router } from 'express';
-import { getAssets, getPresignedURL, uploadAssetDetails } from '@/controllers/assetController.js';
+import {
+  getAssets,
+  getPresignedURL,
+  uploadAssetDetails,
+  getDashboardStats,
+} from '@/controllers/assetController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
 const router: Router = express.Router();
@@ -11,5 +16,6 @@ router.get('/', authMiddleware, getAssets);
 // router.delete('/:id', authMiddleware, deleteUser);
 // router.get('/search', authMiddleware, searchAsset);
 router.post('/presigned-url', authMiddleware, getPresignedURL);
+router.get('/dashboard', authMiddleware, getDashboardStats);
 
 export default router;

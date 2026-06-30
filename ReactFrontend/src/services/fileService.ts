@@ -53,6 +53,12 @@ const fileService = {
       body: { files },
     }),
 
+  getAdminStats: async () =>
+    apiClient({
+      url: "/assets/dashboard",
+      method: "GET",
+    }),
+
   storeFilesMetadata: async (
     files: {
       objectName: string;

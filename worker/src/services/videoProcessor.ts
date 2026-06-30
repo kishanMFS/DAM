@@ -43,7 +43,7 @@ function convert (input:string, output:string, height:number, task:MediaTask, or
         })
         .on("end",async () => {
             const info = await stat(output);
-            const fileSize = (info.size / 1024 / 1024).toFixed(2) + " MB"
+            const fileSize = (info.size / 1024 / 1024)
             const mimeType = mime.lookup(output) || "application/octet-stream";
 
             assetModel.updateAsset(assetid, fileSize, mimeType);

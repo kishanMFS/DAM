@@ -154,6 +154,8 @@ export default function Gallery({
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
           {filteredFiles.map(
             (file: {
+              file_size: number;
+              mime_type: string;
               id: string;
               fileType: string;
               downloadUrl: string;
@@ -199,6 +201,7 @@ export default function Gallery({
                     <p className="font-semibold text-slate-900 truncate text-xs">
                       {file.original_name}
                     </p>
+
                     {file.status === "complete" && (
                       <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
                         Done
@@ -215,12 +218,14 @@ export default function Gallery({
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-500">{file.size}</p>
-                  <p className="text-sm text-slate-500">{file.fileType}</p>
+                  <p className="text-sm text-slate-500">
+                    {Number(file.file_size).toFixed(2)} MB
+                  </p>
+                  <p className="text-sm text-slate-500">{file.mime_type}</p>
                   {file.downloadUrl && file.status === "complete" && (
                     <button
                       onClick={(e) =>
-                        handleDownload(file.downloadUrl, file.originalName, e)
+                        handleDownload(file.downloadUrl, file.original_name, e)
                       }
                       className="text-xs font-semibold uppercase cursor-pointer tracking-wide text-blue-600 hover:text-blue-800 mt-3"
                     >

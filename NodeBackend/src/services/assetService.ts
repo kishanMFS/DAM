@@ -83,6 +83,25 @@ export const uploadAssetDetailsService = async (
   return result;
 };
 
+export const getDashboardStatsService = async (): Promise<ApiResponse> => {
+  const result = {
+    success: false,
+    message: '',
+    data: {},
+  };
+  const getDashboardStatsResult = await assetModel.getDashboardStats();
+  result.success = true;
+  result.message = 'Successfully fetched dashboard stats';
+  result.data = {
+    totalAssets: Number(getDashboardStatsResult.totalAssets),
+    totalUsers: Number(getDashboardStatsResult.totalUsers),
+    totalDownloads: Number(getDashboardStatsResult.totalDownloads),
+    storageUsed: Number(getDashboardStatsResult.storageUsed),
+  };
+
+  return result;
+};
+
 // import { Worker } from 'worker_threads';
 
 // export const createZipService = async (

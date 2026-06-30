@@ -70,7 +70,7 @@ export default function UploadSection({
         id: crypto.randomUUID(),
         file,
         preview: URL.createObjectURL(file),
-        size: (file.size / 1024 / 1024).toFixed(2) + " MB",
+        size: file.size / 1024 / 1024,
         type: file.type,
       });
     });
@@ -105,7 +105,7 @@ export default function UploadSection({
           objectName: p.objectName,
           originalName: files[idx].file.name,
           fileType: files[idx].file.type,
-          size: (files[idx].file.size / 1024 / 1024).toFixed(2) + " MB",
+          size: files[idx].file.size / 1024 / 1024,
         }),
       );
       await fileService.storeFilesMetadata(metadata);
@@ -120,6 +120,7 @@ export default function UploadSection({
     } finally {
       setCurrentUploadId(null);
       setFiles([]);
+      onUploadComplete();
     }
   };
 
@@ -195,7 +196,9 @@ export default function UploadSection({
                   <div className="mt-4">
                     <p className="font-medium truncate">{item.file.name}</p>
 
-                    <p className="text-sm text-slate-500">{item.size}</p>
+                    <p className="text-sm text-slate-500">
+                      {Number(item.size).toFixed(2)} MB
+                    </p>
 
                     <p className="text-sm text-slate-500">{item.type}</p>
 
