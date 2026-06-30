@@ -1,6 +1,10 @@
 import UploadSection from "../components/UploadSection";
+import Gallery from "../components/Gallery";
+import { useState } from "react";
 
 function UserDashboard() {
+  const [shouldPoll, setShouldPoll] = useState(false);
+
   return (
     <div>
       {/* <h1 className="text-3xl font-bold">My Assets</h1>
@@ -13,7 +17,12 @@ function UserDashboard() {
         <div className="bg-white rounded shadow p-6">Recent Files</div>
       </div> */}
 
-      <UploadSection />
+      <UploadSection onUploadComplete={() => setShouldPoll(true)} />
+
+      <Gallery
+        shouldPoll={shouldPoll}
+        onPollingStopped={() => setShouldPoll(false)}
+      />
     </div>
   );
 }

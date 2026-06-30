@@ -43,13 +43,13 @@ export const getAssets = async (userid: string) => {
     message: '',
   };
   const assets = await db.manyOrNone<Asset>(
-    `   SELECT  *
-        FROM    assets
-        WHERE   1=1
-                AND uploaded_by = $1
-        ORDER BY id DESC
+    `
+      SELECT *
+      FROM assets
+      WHERE ($1::text IS NULL OR uploaded_by = $1)
+      ORDER BY id DESC
     `,
-    [userid],
+    [userid || null],
   );
   if (assets) {
     result.success = true;

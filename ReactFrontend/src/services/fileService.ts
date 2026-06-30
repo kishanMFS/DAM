@@ -10,6 +10,7 @@ export interface UploadFileResponse {
   parentId?: string;
   status?: "pending" | "processing" | "complete" | "error";
   progress?: number;
+  data?: object;
 }
 
 export interface FileListResponse {

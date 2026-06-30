@@ -1,4 +1,4 @@
-// import UploadSection from "../components/UploadSection";
+import Gallery from "../components/Gallery";
 
 export default function AdminDashboard() {
   return (
@@ -15,7 +15,7 @@ export default function AdminDashboard() {
         <div className="bg-white shadow rounded p-6">Storage Used</div>
       </div>
 
-      {/* <UploadSection /> */}
+      <Gallery />
     </div>
   );
 }

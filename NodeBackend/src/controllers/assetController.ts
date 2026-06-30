@@ -1,14 +1,18 @@
 import type { Request, Response } from 'express';
 import * as assetService from '@/services/assetService.js';
 
-import logger from '@/utils/winston.js';
-import env from '@/config/env.js';
+import logger from '../utils/winston.js';
+import env from '../config/env.js';
 
 const isProd = env.isProd;
 
 export const getAssets = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.user;
+    let id: string = '';
+    if (req.user?.role != 'ADMIN') {
+      id = req.user?.id;
+    }
+    console.log(req.user);
     const getAssetsResponse = await assetService.getAssetsService(id);
     if (!getAssetsResponse.success) {
       res.status(401).json(getAssetsResponse);
