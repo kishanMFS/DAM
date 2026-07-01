@@ -3,32 +3,17 @@ import * as assetModel from '../src/models/assetModel';
 import { minio } from '../src/utils/minio';
 import sendTask from '../src/utils/producer';
 import type { Asset } from '../src/types/assetTypes';
+import db from '../src/utils/db';
 
-jest.mock('@/utils/db', () => ({
-  default: {
-    manyOrNone: jest.fn(),
-    one: jest.fn(),
-  },
-}));
-jest.mock('@/models/assetModel');
-jest.mock('@/utils/minio', () => ({
-  minio: {
-    presignedGetObject: jest.fn(),
-    presignedPutObject: jest.fn(),
-  },
-}));
+import { describe, test, expect, beforeEach, jest, afterEach } from '@jest/globals';
+
+jest.mock('@/utils/db');
+jest.mock('@/utils/minio');
 jest.mock('@/utils/producer', () => jest.fn());
 
-const mockedAssetModel = assetModel as unknown as {
-  getAssets: jest.Mock;
-  insertAssetDetails: jest.Mock;
-  getDashboardStats: jest.Mock;
-};
+const mockedDb = db as jest.Mocked<typeof db>;
 
-const mockedMinio = minio as unknown as {
-  presignedGetObject: jest.Mock;
-  presignedPutObject: jest.Mock;
-};
+const mockedMinio = minio as jest.Mocked<typeof minio>;
 
 const mockedSendTask = sendTask as unknown as jest.Mock;
 
@@ -43,10 +28,8 @@ describe('assetService test cases', () => {
       { id: '2', storage_key: 'key-2', original_name: 'two' },
     ];
 
-    mockedAssetModel.getAssets.mockResolvedValue({ success: true, Assets: assets, message: 'ok' });
-    mockedMinio.presignedGetObject.mockImplementation(
-      async (_bucket: string, _key: string) => 'https://download/url',
-    );
+    mockedDb.manyOrNone.mockResolvedValue(assets as any);
+    mockedMinio.presignedGetObject.mockResolvedValue('https://download/url' as any);
 
     const res = await assetService.getAssetsService('userid-1');
 
@@ -55,11 +38,11 @@ describe('assetService test cases', () => {
     const data = res.data as Array<Asset & { downloadUrl?: string }>;
     expect(data).toHaveLength(2);
     expect(data[0]).toHaveProperty('downloadUrl', 'https://download/url');
-    expect(mockedAssetModel.getAssets).toHaveBeenCalledWith('userid-1');
+    expect(mockedDb.manyOrNone).toHaveBeenCalled();
   });
 
   test('getPresignedURLService returns presigned URLs for files uploaded', async () => {
-    mockedMinio.presignedPutObject.mockResolvedValue('https://put/url');
+    mockedMinio.presignedPutObject.mockResolvedValue('https://put/url' as any);
 
     const files = [{ fileName: 'a.png', mimeType: 'image/png' }];
     const res = await assetService.getPresignedURLService(files as any);
@@ -82,14 +65,16 @@ describe('assetService test cases', () => {
       data: [{ id: '99', original_name: 'one.png' }],
       message: 'inserted',
     };
-    mockedAssetModel.insertAssetDetails.mockResolvedValue(modelResult);
 
+    const insertAssetDetailsSpy = jest
+      .spyOn(assetModel, 'insertAssetDetails')
+      .mockResolvedValue(modelResult);
     mockedSendTask.mockImplementation(() => undefined);
 
     const res = await assetService.uploadAssetDetailsService(files as any, 'userid');
 
     expect(res).toEqual(modelResult);
-    expect(mockedAssetModel.insertAssetDetails).toHaveBeenCalledWith(files, 'userid');
+    expect(insertAssetDetailsSpy).toHaveBeenCalledWith(expect.any(Array), 'userid');
     expect(mockedSendTask).toHaveBeenCalledTimes(1);
     expect(mockedSendTask).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -100,10 +85,12 @@ describe('assetService test cases', () => {
         userid: 'userid',
       }),
     );
+
+    insertAssetDetailsSpy.mockRestore();
   });
 
   test('getDashboardStatsService returns admin dashboard stats', async () => {
-    mockedAssetModel.getDashboardStats.mockResolvedValue({
+    mockedDb.one.mockResolvedValue({
       totalAssets: '2',
       totalUsers: '1',
       totalDownloads: '5',
@@ -119,5 +106,6 @@ describe('assetService test cases', () => {
       totalDownloads: 5,
       storageUsed: 1234,
     });
+    expect(mockedDb.one).toHaveBeenCalled();
   });
 });

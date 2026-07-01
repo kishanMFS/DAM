@@ -1,6 +1,8 @@
 import jwt from 'jsonwebtoken';
 import * as authService from '../src/services/authService';
 
+import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+
 describe('authService test cases', () => {
   const password = 'Password123!';
 
