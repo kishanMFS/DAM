@@ -26,7 +26,9 @@ export default function AdminDashboard() {
         setStats(adminStats.data);
       } catch (err) {
         // console.error(err);
-        showErrorMessage(err);
+        if (err instanceof Error) {
+          showErrorMessage(err.message);
+        }
       }
     };
 

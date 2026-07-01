@@ -78,6 +78,11 @@ function thumbnail(input:string, output:string){
         })
         .on("end",resolve)
         .on("error",(err, stdout, stderr) => {
+            const errorMessage = 'thumbnail parsing error';
+            logger.error(errorMessage, {
+                message: err instanceof Error ? err.message : String(err),
+                stack: err instanceof Error ? err.stack : undefined,
+            });
             console.error(err);
             console.error(stderr);
             reject(err);
