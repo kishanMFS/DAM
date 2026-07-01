@@ -69,7 +69,13 @@ export const loginUser = async (
   return { access_token: token, userData, cookieOptions };
 };
 
-export const verifyToken = (token: string): { isValid: boolean; message: string } => {
+export const verifyToken = (
+  token: string,
+): {
+  role: string;
+  isValid: boolean;
+  message: string;
+} => {
   const result = {
     isValid: false,
     message: '',

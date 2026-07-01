@@ -17,6 +17,8 @@ async function testConnection() {
   }
 }
 
-testConnection();
+if (process.env.NODE_ENV !== 'test') {
+  testConnection();
+}
 
 export default db;
