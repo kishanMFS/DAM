@@ -56,11 +56,11 @@ export default function LoginForm() {
             {loginMutation.isPending ? "Signing In..." : "Login"}
           </button>
 
-          <div className="text-center">
+          {/* <div className="text-center">
             <a href="/auth/forgot-password" className="text-blue-600">
               Forgot Password?
             </a>
-          </div>
+          </div> */}
         </form>
       </div>
     </div>

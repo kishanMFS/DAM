@@ -6,10 +6,12 @@ import authService from "../services/authService";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
+import useErrorContext from "./useError";
 
 function useAuth() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const { showErrorMessage } = useErrorContext();
 
   const { isLoggedIn, user, role } = useSelector(
     (state: RootState) => state.auth,
@@ -45,7 +47,8 @@ function useAuth() {
     },
     onError: (error) => {
       if (error instanceof Error) {
-        console.error("Login error:", error);
+        // console.error("Login error:", error);
+        showErrorMessage(error.message);
       }
     },
   });
@@ -61,7 +64,8 @@ function useAuth() {
       navigate("/login");
     },
     onError: (error) => {
-      console.error("Error logging out:", error);
+      // console.error("Error logging out:", error);
+      showErrorMessage(error.message);
       dispatch(logoutUser());
       navigate("/login");
     },

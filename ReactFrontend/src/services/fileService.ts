@@ -10,6 +10,7 @@ export interface UploadFileResponse {
   parentId?: string;
   status?: "pending" | "processing" | "complete" | "error";
   progress?: number;
+  data?: object;
 }
 
 export interface FileListResponse {
@@ -50,6 +51,12 @@ const fileService = {
       url: "/assets/presigned-url",
       method: "POST",
       body: { files },
+    }),
+
+  getAdminStats: async () =>
+    apiClient({
+      url: "/assets/dashboard",
+      method: "GET",
     }),
 
   storeFilesMetadata: async (

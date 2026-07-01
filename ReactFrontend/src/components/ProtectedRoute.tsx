@@ -40,13 +40,13 @@ function ProtectedRoute({ children }: childrenType) {
         return;
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isLoggedIn,
     role,
     isVerifying,
     tokenVerificationFailed,
     location.pathname,
+    navigate,
   ]);
 
   // Show loading spinner while verifying token on page reload

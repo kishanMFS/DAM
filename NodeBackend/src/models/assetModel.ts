@@ -43,13 +43,13 @@ export const getAssets = async (userid: string) => {
     message: '',
   };
   const assets = await db.manyOrNone<Asset>(
-    `   SELECT  *
-        FROM    assets
-        WHERE   1=1
-                AND uploaded_by = $1
-        ORDER BY id DESC
+    `
+      SELECT *
+      FROM assets
+      WHERE ($1::text IS NULL OR uploaded_by = $1)
+      ORDER BY id DESC
     `,
-    [userid],
+    [userid || null],
   );
   if (assets) {
     result.success = true;
@@ -104,6 +104,23 @@ export const insertAssetDetails = async (files: AssetFile[], userid: string) => 
   }
 
   return result;
+};
+
+export const getDashboardStats = async () => {
+  const result = await db.one(`
+      SELECT
+        (SELECT COUNT(*) FROM assets) AS "totalAssets",
+        (SELECT COUNT(*) FROM users) AS "totalUsers",
+        (SELECT COALESCE(SUM(download_count),0) FROM assets) AS "totalDownloads",
+        (SELECT COALESCE(SUM(file_size),0) FROM assets) AS "storageUsed"
+  `);
+
+  return {
+    totalAssets: Number(result.totalAssets),
+    totalUsers: Number(result.totalUsers),
+    totalDownloads: Number(result.totalDownloads),
+    storageUsed: Number(result.storageUsed),
+  };
 };
 
 // const deleteProject = async (projectID: string) => {

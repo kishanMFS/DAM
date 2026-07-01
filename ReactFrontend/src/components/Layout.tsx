@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { useState, useEffect } from "react";
+// import { useState, useEffect } from "react";
 import useAuth from "../hooks/useAuth";
 import useErrorContext from "../hooks/useError";
 import Error from "./Error";
@@ -8,20 +8,20 @@ function Layout() {
   const { logoutUser } = useAuth();
   const { errorMessage, closeError } = useErrorContext();
 
-  const [currentDateTime, setCurrentDateTime] = useState(
-    new Date().toLocaleString(),
-  );
-  const [isRunning, setIsRunning] = useState(true);
+  // const [currentDateTime, setCurrentDateTime] = useState(
+  //   new Date().toLocaleString(),
+  // );
+  // const [isRunning, setIsRunning] = useState(true);
 
-  useEffect(() => {
-    if (!isRunning) return;
+  // useEffect(() => {
+  //   if (!isRunning) return;
 
-    const interval = setInterval(() => {
-      setCurrentDateTime(new Date().toLocaleString());
-    }, 1000);
+  //   const interval = setInterval(() => {
+  //     setCurrentDateTime(new Date().toLocaleString());
+  //   }, 1000);
 
-    return () => clearInterval(interval);
-  }, [isRunning]);
+  //   return () => clearInterval(interval);
+  // }, [isRunning]);
 
   const handleLogout = () => {
     logoutUser();
@@ -36,13 +36,13 @@ function Layout() {
           <div className="text-xl font-bold text-slate-800">DAM Dashboard</div>
 
           {/* Date Time */}
-          <div
+          {/* <div
             className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700"
             onMouseEnter={() => setIsRunning(false)}
             onMouseLeave={() => setIsRunning(true)}
           >
             {currentDateTime}
-          </div>
+          </div> */}
 
           {/* Actions */}
           <div className="flex items-center gap-2">

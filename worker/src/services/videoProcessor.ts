@@ -43,7 +43,7 @@ function convert (input:string, output:string, height:number, task:MediaTask, or
         })
         .on("end",async () => {
             const info = await stat(output);
-            const fileSize = (info.size / 1024 / 1024).toFixed(2) + " MB"
+            const fileSize = (info.size / 1024 / 1024)
             const mimeType = mime.lookup(output) || "application/octet-stream";
 
             assetModel.updateAsset(assetid, fileSize, mimeType);
@@ -78,6 +78,11 @@ function thumbnail(input:string, output:string){
         })
         .on("end",resolve)
         .on("error",(err, stdout, stderr) => {
+            const errorMessage = 'thumbnail parsing error';
+            logger.error(errorMessage, {
+                message: err instanceof Error ? err.message : String(err),
+                stack: err instanceof Error ? err.stack : undefined,
+            });
             console.error(err);
             console.error(stderr);
             reject(err);

@@ -1,14 +1,18 @@
 import type { Request, Response } from 'express';
 import * as assetService from '@/services/assetService.js';
 
-import logger from '@/utils/winston.js';
-import env from '@/config/env.js';
+import logger from '../utils/winston.js';
+import env from '../config/env.js';
 
 const isProd = env.isProd;
 
 export const getAssets = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.user;
+    let id: string = '';
+    if (req.user?.role != 'ADMIN') {
+      id = req.user?.id;
+    }
+
     const getAssetsResponse = await assetService.getAssetsService(id);
     if (!getAssetsResponse.success) {
       res.status(401).json(getAssetsResponse);
@@ -79,5 +83,24 @@ export const uploadAssetDetails = async (req: Request, res: Response): Promise<v
       errorMessage = (error as Error).message;
     }
     res.status(500).json({ message: 'Error updating assets details', errorMessage });
+  }
+};
+
+export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const stats = await assetService.getDashboardStatsService();
+
+    res.status(200).json(stats);
+  } catch (error) {
+    let errorMessage = 'Unable to fetch dashboard statistics';
+    logger.error(errorMessage, {
+      message: error instanceof Error ? error.message : String(error),
+      // stack: error instanceof Error ? error.stack : undefined,
+      body: req.body,
+    });
+    if (!isProd) {
+      errorMessage = (error as Error).message;
+    }
+    res.status(500).json({ message: 'Unable to fetch dashboard statistics', errorMessage });
   }
 };
