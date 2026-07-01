@@ -67,7 +67,6 @@ export const uploadAssetDetailsService = async (
   userid: string,
 ): Promise<ApiResponse> => {
   const result = await assetModel.insertAssetDetails(files, userid);
-  console.log(result);
 
   // Send each uploaded file to RabbitMQ
   files.forEach((file, index) => {
