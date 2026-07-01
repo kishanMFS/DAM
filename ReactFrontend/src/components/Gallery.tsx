@@ -80,7 +80,6 @@ export default function Gallery({
     );
 
     if (hasPendingFiles) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       startPolling();
     } else {
       stopPolling();
@@ -89,11 +88,11 @@ export default function Gallery({
     return () => {
       stopPolling();
     };
-  }, [startPolling, stopPolling, uploadedFiles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadedFiles]);
 
   useEffect(() => {
     if (shouldPoll) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       startPolling();
     }
   }, [shouldPoll, startPolling]);
