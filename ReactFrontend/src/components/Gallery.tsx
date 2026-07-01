@@ -169,7 +169,7 @@ export default function Gallery({
                 key={file.id}
                 className="group block bg-white border rounded-xl overflow-hidden shadow-sm transition hover:shadow-lg"
               >
-                {file.fileType?.startsWith("image") ? (
+                {file.mime_type?.startsWith("image") ? (
                   <div className="relative">
                     <img
                       src={file.downloadUrl}
@@ -179,11 +179,6 @@ export default function Gallery({
                   </div>
                 ) : (
                   <div className="h-40 w-full bg-slate-100 rounded-t-xl overflow-hidden relative">
-                    {/* <video
-                        src={file.downloadUrl}
-                        controls
-                        className="h-full w-full object-cover"
-                        /> */}
                     <VideoPlayer src={file.downloadUrl} />
                     {file.progress !== undefined && (
                       <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-200">
@@ -198,7 +193,10 @@ export default function Gallery({
 
                 <div className="p-4">
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <p className="font-semibold text-slate-900 truncate text-xs">
+                    <p
+                      className="font-semibold text-slate-900 truncate text-xs"
+                      title={file.original_name}
+                    >
                       {file.original_name}
                     </p>
 
@@ -222,7 +220,7 @@ export default function Gallery({
                     {Number(file.file_size).toFixed(2)} MB
                   </p>
                   <p className="text-sm text-slate-500">{file.mime_type}</p>
-                  {file.downloadUrl && file.status === "complete" && (
+                  {file.downloadUrl /* && file.status === "complete" */ && (
                     <button
                       onClick={(e) =>
                         handleDownload(file.downloadUrl, file.original_name, e)

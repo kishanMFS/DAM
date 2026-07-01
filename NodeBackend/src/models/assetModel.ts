@@ -3,39 +3,6 @@ import type { Asset, AssetFile } from '@/types/assetTypes.js';
 // import { randomUUID } from 'crypto';
 // import { UUID } from 'crypto';
 
-// import { User } from '@/types/authServiceTypes.js';
-
-// const createProject = async (projectData: Project) => {
-//   const result = {
-//     success: false,
-//     project: null as Project | null,
-//     message: '',
-//   };
-
-//   const createdProject = await db.oneOrNone(
-//     `   INSERT
-//         INTO    tbl_projects
-//                 (project_name, project_description)
-//         VALUES  ($1, $2)
-//                 RETURNING *
-//     `,
-//     [projectData.projectname, projectData.description],
-//   );
-
-//   if (createdProject) {
-//     result.success = true;
-//     result.project = {
-//       project_id: createdProject.project_id,
-//       projectname: createdProject.project_name,
-//       description: createdProject.project_description,
-//       createddate: createdProject.cdt,
-//     };
-//     result.message = 'Project created successfully';
-//   }
-
-//   return result;
-// };
-
 export const getAssets = async (userid: string) => {
   const result = {
     success: false,
@@ -62,10 +29,10 @@ export const getAssets = async (userid: string) => {
 export const insertAssetDetails = async (files: AssetFile[], userid: string) => {
   const result = {
     success: false,
-    data: {
-      id: '',
-      original_name: '',
-    },
+    data: [] as {
+      id: string;
+      original_name: string;
+    }[],
     message: '',
   };
 
@@ -80,7 +47,7 @@ export const insertAssetDetails = async (files: AssetFile[], userid: string) => 
     params.push(file.objectName, file.originalName, file.fileType, file.size, userid);
   });
 
-  const insertAssetDetailsResult = await db.oneOrNone(
+  const insertAssetDetailsResult = await db.manyOrNone(
     `
       INSERT INTO assets
       (
@@ -97,8 +64,7 @@ export const insertAssetDetails = async (files: AssetFile[], userid: string) => 
   );
 
   if (insertAssetDetailsResult) {
-    result.data.id = insertAssetDetailsResult.id;
-    result.data.original_name = insertAssetDetailsResult.original_name;
+    result.data = insertAssetDetailsResult;
     result.success = true;
     result.message = 'assets details uploaded successfully';
   }
