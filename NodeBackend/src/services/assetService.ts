@@ -67,18 +67,20 @@ export const uploadAssetDetailsService = async (
   userid: string,
 ): Promise<ApiResponse> => {
   const result = await assetModel.insertAssetDetails(files, userid);
+  console.log(result);
 
-  // get files from minIO and send to rabbitMQ for processing
-  for (const file of files) {
+  // Send each uploaded file to RabbitMQ
+  files.forEach((file, index) => {
+    const insertedFile = result.data[index];
     sendTask({
-      fileid: result.data.id,
-      original_name: result.data.original_name,
+      fileid: insertedFile.id,
+      original_name: insertedFile.original_name,
       objectName: file.objectName,
       bucket: BUCKET_NAME,
       fileType: file.fileType,
       userid,
     });
-  }
+  });
 
   return result;
 };

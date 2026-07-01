@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import * as assetService from '@/services/assetService.js';
+import * as assetService from '../services/assetService.js';
 
 import logger from '../utils/winston.js';
 import env from '../config/env.js';

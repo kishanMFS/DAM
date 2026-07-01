@@ -33,7 +33,7 @@ const startWorker = async (): Promise<void> => {
                 // Simulate processing/business logic
                 setTimeout(async () => {
 
-                    // console.log(task)
+                    console.log(task)
                     const tempFile = path.join(
                         "temp",
                         path.basename(task.objectName)
@@ -61,7 +61,7 @@ const startWorker = async (): Promise<void> => {
         });
 
     } catch (error) {
-        console.log(error)
+        console.log(error.message)
         const errorMessage = 'rabbitmq consumer error';
         logger.error(errorMessage, {
             message: error instanceof Error ? error.message : String(error),
