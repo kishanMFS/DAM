@@ -1,8 +1,7 @@
 services:
 
   frontend:
-    build:
-      context: ./ReactFrontend
+    build: ./ReactFrontend
 
     ports:
       - "80:80"
@@ -22,13 +21,15 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: Projectmanagement
+      DB_NAME: dam
       DB_USER: admin
       DB_PASSWORD: Admin123
       DB_URL: postgres://admin:Admin123@postgres:5432/dam
 
     depends_on:
       - postgres
+      rabbitmq:
+        condition: service_healthy
 
   postgres:
     image: postgres:17-alpine
@@ -52,8 +53,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=devadmin
-      - MINIO_ROOT_PASSWORD=devpassword123
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
     volumes:
       - minio_data:/data
     command: server --console-address ":9001" /data
@@ -66,6 +67,25 @@ services:
       - ./worker/.env.production
  depends_on:
       - postgres
+
+ rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitMQ
+    restart: always
+    environment:
+      # This tells RabbitMQ to listen on port 73 internally
+      - RABBITMQ_NODE_PORT=73
+      - RABBITMQ_DIST_PORT=25672
+    ports:
+      - "73:73"           # Host Port 73 -> Container Port 73
+      - "15672:15672"     # Management UI (Dashboard)
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
 
 volumes:
   postgres_data:

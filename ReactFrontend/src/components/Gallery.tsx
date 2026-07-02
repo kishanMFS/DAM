@@ -41,20 +41,19 @@ export default function Gallery({
     null,
   );
 
-  const stopPolling = () => {
+  const stopPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
+
     setIsPolling(false);
     onPollingStopped?.();
-  };
+  }, [onPollingStopped]);
 
   // Polling logic: keep fetching until all files have status complete/error
   const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      return;
-    }
+    if (pollingIntervalRef.current) return;
 
     setIsPolling(true);
 
@@ -70,7 +69,7 @@ export default function Gallery({
         stopPolling();
       }
     }, 800);
-  });
+  }, [refetchFiles, stopPolling]);
 
   // Start polling on mount when existing files are still pending
   useEffect(() => {
@@ -89,6 +88,7 @@ export default function Gallery({
     return () => {
       stopPolling();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadedFiles]);
 
   useEffect(() => {
@@ -154,6 +154,7 @@ export default function Gallery({
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
           {filteredFiles.map(
             (file: {
+              parentid: string;
               file_size: number;
               mime_type: string;
               id: string;
@@ -219,7 +220,9 @@ export default function Gallery({
                   <p className="text-sm text-slate-500">
                     {Number(file.file_size).toFixed(2)} MB
                   </p>
+
                   <p className="text-sm text-slate-500">{file.mime_type}</p>
+
                   {file.downloadUrl /* && file.status === "complete" */ && (
                     <button
                       onClick={(e) =>

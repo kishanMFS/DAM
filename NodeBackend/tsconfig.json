@@ -9,7 +9,7 @@
       "@/*": ["*"]
     },
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
     // "esModuleInterop": true,
   },
   "include": [

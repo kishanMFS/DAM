@@ -8,7 +8,7 @@ export const findUserByEmail = async (emailId: string): Promise<User | null> => 
         WHERE   1=1
                 AND email = $1
                 AND is_active = true
-                `,
+    `,
     [emailId],
   );
 
@@ -18,7 +18,7 @@ export const findUserByEmail = async (emailId: string): Promise<User | null> => 
 export const getUserType = async (roleId: number): Promise<RoleType | null> => {
   const userType = await db.oneOrNone<RoleType>(
     `
-      SELECT    id, 
+      SELECT  id, 
               name
       FROM    roles
       WHERE   1=1

@@ -1,6 +1,6 @@
 FROM node:26-alpine AS builder
 
-WORKDIR /ProjectManagementReact
+WORKDIR /reactfrontend
 
 COPY package*.json ./
 COPY . .
@@ -14,7 +14,7 @@ RUN npm run build
 # Runtime stage
 FROM nginx:stable-alpine
 
-COPY --from=builder /ProjectManagementReact/dist /usr/share/nginx/html
+COPY --from=builder /reactfrontend/dist /usr/share/nginx/html
 COPY nginx.config /etc/nginx/conf.d/default.conf
 
 CMD ["nginx", "-g", "daemon off;"]
