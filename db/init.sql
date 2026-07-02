@@ -1,4 +1,4 @@
-CREATE DATABASE dam;
+-- CREATE DATABASE dam;
 
 CREATE TABLE roles
 (
@@ -13,7 +13,7 @@ VALUES
 
 CREATE TABLE users
 (
-    id UUID PRIMARY KEY,
+    id UUID DEFAULT uuidv7() NOT NULL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     salt TEXT NOT NULL,
@@ -52,16 +52,19 @@ VALUES (
 
 CREATE TABLE assets
 (
-    id UUID PRIMARY KEY,
-    original_name VARCHAR(500),
+    id UUID PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+    original_name CHARACTER VARYING(500),
     mime_type VARCHAR(255),
-    file_size VARCHAR(255),
+    file_size INTEGER,
     storage_key TEXT,
     thumbnail_key TEXT,
-    status VARCHAR(50),
+    status CHARACTER VARYING(50),
     uploaded_by UUID REFERENCES users(id),
     created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    updated_at TIMESTAMP DEFAULT NOW(),
+	parentid uuid,
+    progress smallint DEFAULT 0 NOT NULL,
+    download_count integer DEFAULT 0 NOT NULL
 );
 
 CREATE TABLE asset_downloads

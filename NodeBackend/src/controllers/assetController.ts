@@ -9,8 +9,8 @@ const isProd = env.isProd;
 export const getAssets = async (req: Request, res: Response): Promise<void> => {
   try {
     let id: string = '';
-    if (req.user?.role != 'ADMIN') {
-      id = req.user?.id;
+    if (req.user && req.user.role != 'ADMIN') {
+      id = String(req.user.id);
     }
 
     const getAssetsResponse = await assetService.getAssetsService(id);
@@ -64,7 +64,7 @@ export const uploadAssetDetails = async (req: Request, res: Response): Promise<v
   try {
     // const { fileName, mimeType } = req.body;
     const files = req.body.files;
-    const { id } = req.user;
+    const { id } = req.user!;
 
     const uploadAssetDetailsResponse = await assetService.uploadAssetDetailsService(files, id);
     if (!uploadAssetDetailsResponse.success) {

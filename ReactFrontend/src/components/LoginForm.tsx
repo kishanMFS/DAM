@@ -16,7 +16,7 @@ export default function LoginForm() {
 
   return (
     <div className="min-h-screen flex justify-center items-center bg-slate-100">
-      <div className="bg-white shadow-lg rounded-xl p-8 w-[100]">
+      <div className="bg-white shadow-lg rounded-xl p-8">
         <h1 className="text-3xl font-bold mb-6 text-center">DAM Login</h1>
         <form onSubmit={handleSubmit} className="space-y-5">
           {(error || loginMutation.isError) && (

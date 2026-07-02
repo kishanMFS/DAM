@@ -5,6 +5,10 @@ import env from './config/env.js';
 import errorHandler from './middleware/errorHandler.js';
 import cookies from 'cookie-parser';
 import helmet from 'helmet';
+import { initializeMinio } from './utils/minio.js';
+
+// initialize minio bucket
+initializeMinio();
 
 const [unexpectedRequest, addErrorToRequestLog, globalErrorHandler] = errorHandler();
 import authRoutes from './routes/authRoutes.js';

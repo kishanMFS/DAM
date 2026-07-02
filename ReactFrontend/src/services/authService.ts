@@ -6,7 +6,6 @@ export interface LoginRequest {
 }
 
 export interface UserInfo {
-  // [x: string]: boolean | UserInfo;
   emailId: string | null;
   id: string;
   email: string;
