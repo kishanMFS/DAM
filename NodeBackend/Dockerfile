@@ -1,6 +1,6 @@
 FROM node:26-alpine AS builder
 
-WORKDIR /ProjectManagementNode
+WORKDIR /nodebackend
 
 COPY package*.json ./
 RUN npm install
@@ -8,10 +8,10 @@ COPY . .
 RUN npm run build
 
 FROM node:26-alpine
-WORKDIR /ProjectManagementNode
+WORKDIR /nodebackend
 COPY package*.json ./
 RUN npm install --omit=dev
-COPY --from=builder /ProjectManagementNode/dist ./dist
+COPY --from=builder /nodebackend/dist ./dist
 EXPOSE 3002
 
 
