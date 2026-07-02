@@ -6,8 +6,8 @@ let apiRateLimit = 100000;
 let authRateLimit = 100000;
 
 if (isProd) {
-  apiRateLimit = 100; // Max 100 requests per IP
-  authRateLimit = 10; // Stricter limit for login endpoint
+  apiRateLimit = 1000; // Max 100 requests per IP
+  authRateLimit = 100; // Stricter limit for login endpoint
 }
 
 export const apiRateLimiter = rateLimit({

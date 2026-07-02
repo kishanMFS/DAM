@@ -4,10 +4,11 @@ import jwt, { VerifyErrors, JwtPayload } from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 interface JwtUser extends JwtPayload {
-  id: number;
+  id: string;
   emailID: string;
   iat: number;
   exp: number;
+  role: string;
 }
 
 const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {

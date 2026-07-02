@@ -1,11 +1,15 @@
-import db from '../utils/db.js';
-import type { Asset, AssetFile, MediaTask } from '../types/assetTypes.js';
-import { RandomUUIDOptions } from 'node:crypto';
+import db from "../utils/db.js";
+import type { Asset, AssetFile, MediaTask } from "../types/assetTypes.js";
+// import { RandomUUIDOptions } from 'node:crypto';
 // import { UUID } from 'crypto';
 
 // import { User } from '@/types/authServiceTypes.js';
 
-export async function createAsset(task: MediaTask, originalName: string, storage_key: string) {
+export async function createAsset(
+  task: MediaTask,
+  originalName: string,
+  storage_key: string,
+) {
   return db.one(
     `
       INSERT INTO assets
@@ -21,24 +25,17 @@ export async function createAsset(task: MediaTask, originalName: string, storage
       ($1,$2,$3,$4,$5,$6)
       RETURNING *
     `,
-    [
-      originalName,
-      storage_key,
-      "processing",
-      0,
-      task.userid,
-      task.fileid
-    ]
+    [originalName, storage_key, "processing", 0, task.userid, task.fileid],
   );
 }
 
 export async function updateAssetProgress(
-    assetId: RandomUUIDOptions,
-    progress: number,
-    status: string
+  assetId: string,
+  progress: number,
+  status: string,
 ) {
-    return db.none(
-      `
+  return db.none(
+    `
         UPDATE assets
         SET
             progress = $2,
@@ -46,17 +43,17 @@ export async function updateAssetProgress(
             updated_at = NOW()
         WHERE id = $1
       `,
-      [assetId, progress, status]
-    );
+    [assetId, progress, status],
+  );
 }
 
 export async function updateAsset(
-    assetId: RandomUUIDOptions,
-    fileSize: string, 
-    mimeType: string
+  assetId: string,
+  fileSize: number,
+  mimeType: string,
 ) {
-    db.none(
-      `
+  db.none(
+    `
         UPDATE assets
         SET
             mime_type = $2,
@@ -64,23 +61,20 @@ export async function updateAsset(
             updated_at = NOW()
         WHERE id = $1
       `,
-      [assetId, mimeType, fileSize]
-    );
+    [assetId, mimeType, fileSize],
+  );
 }
 
-export async function updateAssetStatus(
-    assetId: RandomUUIDOptions,
-    status: string
-) {
-    db.none(
-      `
+export async function updateAssetStatus(assetId: string, status: string) {
+  db.none(
+    `
         UPDATE assets
         SET status = $2,
             updated_at = NOW()
         WHERE id = $1
       `,
-      [assetId, status]
-    );
+    [assetId, status],
+  );
 }
 
 export async function getAsset(assetId: string) {
@@ -98,7 +92,7 @@ export async function getAsset(assetId: string) {
       FROM  tbl_assets
       WHERE asset_id = $1
       `,
-      [assetId]
+    [assetId],
   );
 }
 
@@ -106,7 +100,7 @@ export const getAssets = async (userid: string) => {
   const result = {
     success: false,
     Assets: [] as Asset[],
-    message: '',
+    message: "",
   };
   const assets = await db.manyOrNone<Asset>(
     `   SELECT  *
@@ -118,18 +112,15 @@ export const getAssets = async (userid: string) => {
   );
   if (assets) {
     result.success = true;
-    result.message = 'Assets fetched successfully';
+    result.message = "Assets fetched successfully";
     result.Assets = assets;
   }
   return result;
 };
 
-export async function failAsset(
-    assetId: string,
-    error: string
-) {
-    return db.none(
-      `
+export async function failAsset(assetId: string, error: string) {
+  return db.none(
+    `
       UPDATE assets
       SET
         status = 'failed',
@@ -137,15 +128,18 @@ export async function failAsset(
         updated_at = NOW()
       WHERE asset_id = $1
       `,
-      [assetId, error]
-    );
+    [assetId, error],
+  );
 }
 
-export const insertAssetDetails = async (files: AssetFile[], userid: string) => {
+export const insertAssetDetails = async (
+  files: AssetFile[],
+  userid: string,
+) => {
   const result = {
     success: false,
 
-    message: '',
+    message: "",
   };
 
   const values: string[] = [];
@@ -156,7 +150,13 @@ export const insertAssetDetails = async (files: AssetFile[], userid: string) => 
 
     values.push(`($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5})`);
 
-    params.push(file.objectName, file.originalName, file.fileType, file.size, userid);
+    params.push(
+      file.objectName,
+      file.originalName,
+      file.fileType,
+      file.size,
+      userid,
+    );
   });
 
   await db.none(
@@ -169,13 +169,13 @@ export const insertAssetDetails = async (files: AssetFile[], userid: string) => 
         file_size,
         uploaded_by
       )
-      VALUES ${values.join(',')}
+      VALUES ${values.join(",")}
     `,
     params,
   );
 
   result.success = true;
-  result.message = 'assets details uploaded successfully';
+  result.message = "assets details uploaded successfully";
 
   return result;
 };

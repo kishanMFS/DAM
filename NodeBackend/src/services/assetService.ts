@@ -1,12 +1,12 @@
 import type { Asset, ApiResponse, AssetFile } from '@/types/assetTypes.js';
 import sendTask from '../utils/producer.js';
 import * as assetModel from '@/models/assetModel.js';
-import { minio } from '../utils/minio.js';
+import { minio, bucketName } from '../utils/minio.js';
 import crypto from 'crypto';
 // import env from '@/config/env.js';
 
 // const isProd = env.isProd;
-const BUCKET_NAME = 'dam-assets';
+const BUCKET_NAME = bucketName;
 
 export const getAssetsService = async (userid: string): Promise<ApiResponse<Asset[]>> => {
   const result = await assetModel.getAssets(userid);
@@ -102,107 +102,3 @@ export const getDashboardStatsService = async (): Promise<ApiResponse> => {
 
   return result;
 };
-
-// import { Worker } from 'worker_threads';
-
-// export const createZipService = async (
-//   projectID: string,
-//   fileID: number[],
-// ): Promise<ApiResponse<{ jobid: number; status: string }>> => {
-//   const result = {
-//     success: false,
-//     message: '',
-//     status: '',
-//     jobid: 0,
-//     project_id: '',
-//   };
-//   const getProjectFilesByIdsResult = await getProjectFilesByIds(projectID, fileID);
-//   let createJobresult = {
-//     jobs: {
-//       jobid: 0,
-//       status: '',
-//     },
-//   };
-//   try {
-//     if (!getProjectFilesByIdsResult.success) {
-//       result.success = getProjectFilesByIdsResult.success;
-//       result.message = getProjectFilesByIdsResult.message;
-//     }
-
-//     const files = getProjectFilesByIdsResult.projectfile ?? [];
-
-//     if (!files.length) {
-//       return {
-//         success: false,
-//         message: 'No files found',
-//       } as ProjectModelType;
-//     }
-
-//     const zipName = `project_${projectID}_${Date.now()}.zip`;
-//     const zipPath = path.join(process.cwd(), 'files', zipName);
-
-//     // create a jon record
-//     createJobresult = await createJob(projectID, zipName);
-
-//     const jobId = createJobresult.jobs.jobid;
-
-//     const worker = new Worker(
-//       path.resolve(
-//         process.cwd(),
-//         isProd ? 'dist/src/workers/zipWorker.ts' : 'src/workers/zipWorker.ts',
-//       ),
-//       {
-//         workerData: {
-//           projectID,
-//           zipPath,
-//           files,
-//         },
-//       },
-//     );
-
-//     let lastUpdatePromise: Promise<void> = Promise.resolve();
-
-//     const cleanupListeners = () => {
-//       worker.removeAllListeners();
-//     };
-
-//     worker.on('message', (message) => {
-//       // console.log('message:', message.status)
-
-//       lastUpdatePromise = lastUpdatePromise
-//         .then(async () => {
-//           await updateJobStatus(jobId, message.status, message.progress ?? 0);
-//         })
-//         .catch((err) => {
-//           console.error('DB update failed:', err);
-//         });
-//     });
-
-//     worker.on('error', async (error) => {
-//       // console.log('Worker error:', error);
-
-//       await updateJobStatus(jobId, 'ERROR', 0, (error as Error).message);
-//       cleanupListeners();
-//     });
-
-//     worker.on('exit', async (code) => {
-//       // console.log('Worker exit:', code);
-//       if (code !== 0) {
-//         await updateJobStatus(jobId, 'FAILED', 0, `Worker exited with code ${code}`);
-//       }
-
-//       cleanupListeners();
-//     });
-//   } catch (error) {
-//     result.success = false;
-//     result.message = (error as Error).message;
-//   }
-//   return {
-//     success: true,
-//     message: 'Zip created successfully',
-//     data: {
-//       jobid: createJobresult.jobs.jobid,
-//       status: createJobresult.jobs.status,
-//     },
-//   };
-// };
