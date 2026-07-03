@@ -1,4 +1,4 @@
-import ffmpeg from "fluent-ffmpeg";
+import ffmpeg, { FfprobeData } from "fluent-ffmpeg";
 import ffmpegPath from "ffmpeg-static";
 import ffprobe from "ffprobe-static";
 import * as assetModel from "../models/assetModel.js";
@@ -10,11 +10,23 @@ import logger from "../utils/winston.js";
 import path from "path";
 // import { uploadObject } from "./minio";
 import { minio } from "../utils/minio.js";
-import { MediaTask } from "../types/assetTypes.js";
+import { MediaTask, VideoStream } from "../types/assetTypes.js";
 import { randomUUID } from "crypto";
 
 ffmpeg.setFfmpegPath(ffmpegPath as unknown as string);
 ffmpeg.setFfprobePath(ffprobe.path);
+
+function probeVideo(file: string): Promise<FfprobeData> {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(file, (err, metadata) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(metadata);
+      }
+    });
+  });
+}
 
 function convert(
   input: string,
@@ -46,7 +58,7 @@ function convert(
 
         await assetModel.updateAssetProgress(
           assetid,
-          progress.percent!,
+          progress.percent! || 0,
           "processing",
         );
       })
@@ -54,9 +66,34 @@ function convert(
         const info = await stat(output);
         const fileSize = info.size / 1024 / 1024;
         const mimeType = mime.lookup(output) || "application/octet-stream";
+        const probe = await probeVideo(output);
+        const videoStream = (probe.streams as VideoStream[])?.find(
+          (s) => s.codec_type === "video",
+        );
 
-        assetModel.updateAsset(assetid, fileSize, mimeType);
-        assetModel.updateAssetStatus(assetid, "complete");
+        const tags = {
+          filename: originalName,
+          mimeType,
+          fileType: videoStream?.codec_name || "video",
+          fileSizeMB: fileSize,
+          dimensions: {
+            width: videoStream?.width,
+            height: videoStream?.height,
+          },
+          durationSeconds:
+            Number(videoStream?.duration || probe.format?.duration) ||
+            undefined,
+          metadata: {
+            formatName: probe.format?.format_name,
+            bitRate: videoStream?.bit_rate
+              ? Number(videoStream.bit_rate)
+              : undefined,
+          },
+        };
+
+        await assetModel.updateAsset(assetid, fileSize, mimeType);
+        await assetModel.insertAssetTags(assetid, tags);
+        await assetModel.updateAssetStatus(assetid, "complete");
 
         console.log("Video conversion completed.");
         resolve("");

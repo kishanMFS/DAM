@@ -11,10 +11,13 @@ export const getAssets = async (userid: string) => {
   };
   const assets = await db.manyOrNone<Asset>(
     `
-      SELECT *
-      FROM assets
-      WHERE ($1::text IS NULL OR uploaded_by = $1)
-      ORDER BY id DESC
+       SELECT a.*,
+              at.tags::jsonb AS tags
+      FROM    assets a
+              LEFT JOIN assettags at
+                ON at.assetid = a.id
+      WHERE   ($1::text IS NULL OR a.uploaded_by = $1)
+              ORDER BY a.id DESC
     `,
     [userid || null],
   );

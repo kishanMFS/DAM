@@ -43,6 +43,7 @@ export default function UploadSection({
       "video/mp4",
       "video/webm",
       "video/quicktime",
+      "video/matroska",
     ];
 
     if (!validTypes.includes(file.type)) {

@@ -33,9 +33,43 @@ export default function Gallery({
   });
 
   const uploadedFiles = fileListData?.data ?? [];
-  const filteredFiles = uploadedFiles.filter((file: UploadFileResponse) =>
-    file.original_name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const searchLower = searchQuery.toLowerCase();
+
+  const collectTagValues = (value: unknown, results: string[]) => {
+    if (value === null || value === undefined) return;
+
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      results.push(String(value));
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => collectTagValues(item, results));
+      return;
+    }
+
+    if (typeof value === "object") {
+      Object.values(value).forEach((item) => collectTagValues(item, results));
+    }
+  };
+
+  const filteredFiles = uploadedFiles.filter((file: UploadFileResponse) => {
+    if (!searchLower) return true;
+
+    const tags = file.tags;
+    if (!tags || typeof tags !== "object") {
+      return false;
+    }
+
+    const tagValues: string[] = [];
+    collectTagValues(tags, tagValues);
+
+    return tagValues.some((value) => value.toLowerCase().includes(searchLower));
+  });
 
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null,

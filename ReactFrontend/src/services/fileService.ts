@@ -1,6 +1,7 @@
 import { apiClient } from "./apiClient";
 
 export interface UploadFileResponse {
+  tags: object;
   original_name: string;
   id: string;
   originalName: string;
@@ -10,7 +11,7 @@ export interface UploadFileResponse {
   parentId?: string;
   status?: "pending" | "processing" | "complete" | "error";
   progress?: number;
-  data?: object;
+  data?: Array<{ tags?: Record<string, unknown> }>;
 }
 
 export interface FileListResponse {

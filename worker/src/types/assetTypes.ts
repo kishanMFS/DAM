@@ -34,15 +34,30 @@ export interface AssetFile {
   downloadUrl?: string;
 }
 
+export interface AssetTag {
+  tagId: number;
+  assetId: string;
+  tags: Record<string, unknown>;
+}
+
 export interface MediaTask {
-    fileid: UUID;
-    original_name: string;
-    originalName: string;
-    fileSize: string;
-    bucketName: string;
-    id: UUID;
-    objectName: string;
-    bucket: string;
-    fileType: string;
-    userid: string;
+  fileid: UUID;
+  original_name: string;
+  originalName: string;
+  fileSize: string;
+  bucketName: string;
+  id: UUID;
+  objectName: string;
+  bucket: string;
+  fileType: string;
+  userid: string;
+}
+
+export interface VideoStream {
+  codec_type?: string;
+  codec_name?: string;
+  width?: number;
+  height?: number;
+  duration?: string;
+  bit_rate?: string;
 }
