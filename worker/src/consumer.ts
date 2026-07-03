@@ -33,6 +33,8 @@ const startWorker = async (): Promise<void> => {
         });
         process.exit(1); // Exit if connection fails
       }
+
+      await new Promise((resolve) => setTimeout(resolve, 4000));
     }
   }
 

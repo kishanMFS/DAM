@@ -44,7 +44,6 @@ function convert(
       .output(output)
       .on("start", async (cmd) => {
         console.log("Started:", cmd);
-        console.log(task);
         const createAssetResponse = await assetModel.createAsset(
           task,
           originalName,

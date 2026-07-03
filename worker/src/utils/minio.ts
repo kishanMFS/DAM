@@ -1,4 +1,5 @@
 import { Client } from "minio";
+
 const bucketName = process.env.MINIO_BUCKET || "uploads";
 
 export const minio = new Client({

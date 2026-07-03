@@ -89,6 +89,12 @@ export const uploadAssetDetails = async (req: Request, res: Response): Promise<v
 export const updateDownloadCount = async (req: Request, res: Response): Promise<void> => {
   try {
     const { fileId } = req.params;
+
+    if (typeof fileId !== 'string') {
+      res.status(400).json({ message: 'Invalid fileId' });
+      return;
+    }
+
     const response = await assetService.updateDownloadCountService(fileId);
 
     if (!response.success) {
