@@ -59,7 +59,7 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       # - MINIO_SERVER_URL=http://localhost:9000
     volumes:
-      - minio_data:/mnt/data
+      - minio_data:/data
       - ./minio/minio.license:/minio.license:ro
       - ./minio/certs:/etc/minio/certs:ro
     command: server --console-address ":9001" /data
