@@ -102,3 +102,13 @@ export const getDashboardStatsService = async (): Promise<ApiResponse> => {
 
   return result;
 };
+
+export const updateDownloadCountService = async (fileId: string): Promise<ApiResponse> => {
+  const result = await assetModel.updateDownloadCount(fileId);
+
+  return {
+    success: result.success,
+    message: result.message,
+    data: result.data,
+  };
+};

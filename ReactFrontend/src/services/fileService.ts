@@ -93,6 +93,12 @@ const fileService = {
 
     return response;
   },
+
+  updateDownloadCount: async (fileId: string) =>
+    apiClient({
+      url: `/assets/${fileId}/download-count`,
+      method: "PATCH",
+    }),
 };
 
 export default fileService;

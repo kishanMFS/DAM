@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { useApi } from "../hooks/useAPI";
 import { type UploadFileResponse } from "../services/fileService";
+import fileService from "../services/fileService";
 
 const VideoPlayer = memo(
   ({ src }: { src: string }) => (
@@ -132,6 +133,7 @@ export default function Gallery({
   }, [shouldPoll, startPolling]);
 
   const handleDownload = async (
+    fileId: string,
     url: string,
     fileName: string,
     e: React.MouseEvent,
@@ -148,6 +150,8 @@ export default function Gallery({
 
     document.body.removeChild(link);
     window.URL.revokeObjectURL(blobUrl);
+
+    await fileService.updateDownloadCount(fileId);
   };
 
   return (
@@ -260,7 +264,12 @@ export default function Gallery({
                   {file.downloadUrl /* && file.status === "complete" */ && (
                     <button
                       onClick={(e) =>
-                        handleDownload(file.downloadUrl, file.original_name, e)
+                        handleDownload(
+                          file.id,
+                          file.downloadUrl,
+                          file.original_name,
+                          e,
+                        )
                       }
                       className="text-xs font-semibold uppercase cursor-pointer tracking-wide text-blue-600 hover:text-blue-800 mt-3"
                     >

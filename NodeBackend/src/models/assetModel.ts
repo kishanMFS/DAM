@@ -92,252 +92,33 @@ export const getDashboardStats = async () => {
   };
 };
 
-// const deleteProject = async (projectID: string) => {
-//   const result = {
-//     success: false,
-//     message: '',
-//   };
+export const updateDownloadCount = async (fileId: string) => {
+  const result = {
+    success: false,
+    message: '',
+    data: null as { id: string; download_count: number } | null,
+  };
 
-//   db.oneOrNone(
-//     `
-//       UPDATE  tbl_projects
-//       SET     is_deleted = true
-//       WHERE   1=1
-//               AND project_id = $1
-//     `,
-//     [projectID],
-//   );
+  const updateResult = await db.oneOrNone(
+    `
+      UPDATE assets
+      SET download_count = COALESCE(download_count, 0) + 1
+      WHERE id = $1
+      RETURNING id, download_count
+    `,
+    [fileId],
+  );
 
-//   result.success = true;
-//   result.message = 'Project deleted successfully';
+  if (updateResult) {
+    result.success = true;
+    result.message = 'Download count updated successfully';
+    result.data = {
+      id: updateResult.id,
+      download_count: Number(updateResult.download_count),
+    };
+  } else {
+    result.message = 'Asset not found';
+  }
 
-//   return result;
-// };
-
-// const uploadFilesToProject = async (
-//   projectID: string,
-//   originalname: string,
-//   filekey: string,
-//   mimetype: string,
-//   size: number,
-// ): Promise<{
-//   success: boolean;
-//   message: string;
-//   files?: {
-//     projectfileid: number;
-//     cdt: string;
-//   };
-// }> => {
-//   const result: {
-//     success: boolean;
-//     message: string;
-//     files?: {
-//       projectfileid: number;
-//       cdt: string;
-//     };
-//   } = {
-//     success: false,
-//     message: '',
-//     files: {
-//       projectfileid: 0,
-//       cdt: '',
-//     },
-//   };
-
-//   const insertFiles = await db.oneOrNone(
-//     ` INSERT
-//       INTO    tbl_projectsfiles
-//               (projectfilename, projectfilekey, projectfilesize, project_id, mimetype)
-//       VALUES  ($1, $2, $3, $4, $5)
-//               RETURNING *
-//     `,
-//     [originalname, filekey, size, projectID, mimetype],
-//   );
-
-//   if (insertFiles) {
-//     result.success = true;
-//     result.files = {
-//       projectfileid: insertFiles.projectfileid,
-//       cdt: insertFiles.cdt,
-//     };
-//     result.message = 'Project created successfully';
-//   }
-
-//   return result;
-// };
-
-// const deleteProjectFiles = async (projectID: string, fileID: string) => {
-//   const result = {
-//     success: false,
-//     message: '',
-//     projectfilekey: '',
-//   };
-
-//   const deleteFile = await db.oneOrNone(
-//     `
-//       DELETE
-//       FROM    tbl_projectsFiles
-//       WHERE   1=1
-//               AND project_id = $1
-//               AND projectfileid = $2
-//               RETURNING projectfilekey
-//     `,
-//     [projectID, fileID],
-//   );
-
-//   result.success = true;
-//   result.message = 'Project deleted successfully';
-//   result.projectfilekey = deleteFile.projectfilekey;
-
-//   return result;
-// };
-
-// const getProjectFilesByIds = async (projectID: string, fileId: number[]) => {
-//   const result = {
-//     success: false,
-//     message: 'no files found',
-//     projectfile: [{}],
-//   };
-
-//   const getFiles = await db.manyOrNone(
-//     `
-//       SELECT  projectfileid,
-//               projectfilename,
-//               projectfilekey
-//       FROM    tbl_projectsfiles
-//       WHERE   project_id = $1
-//               AND projectfileid = ANY($2::int[])
-//     `,
-//     [projectID, fileId],
-//   );
-
-//   if (getFiles.length) {
-//     result.success = true;
-//     result.message = 'Project files fetched successfully';
-//     result.projectfile = getFiles.map((file) => ({
-//       projectfilename: file.projectfilename,
-//       projectfilekey: file.projectfilekey,
-//     }));
-//   }
-
-//   return result;
-// };
-
-// const createJob = async (projectID: string, zipName: string) => {
-//   const result = {
-//     success: false,
-//     message: 'create job error',
-//     jobs: {
-//       jobid: 0,
-//       status: '',
-//       cdt: '',
-//     },
-//   };
-
-//   const createJob = await db.oneOrNone(
-//     `
-//       INSERT
-//       INTO    tbl_projectjobs
-//               (project_id, zipname)
-//       VALUES  ($1, $2)
-//               RETURNING *
-//     `,
-//     [projectID, zipName],
-//   );
-
-//   if (createJob) {
-//     result.success = true;
-//     result.jobs = {
-//       jobid: createJob.jobid,
-//       cdt: createJob.cdt,
-//       status: createJob.status,
-//     };
-//     result.message = 'Project job created successfully';
-//   }
-
-//   return result;
-// };
-
-// const getJobsStatus = async (projectID: string) => {
-//   const result: {
-//     success: boolean;
-//     jobs: ProjectJob[];
-//     message: string;
-//   } = {
-//     success: false,
-//     jobs: [],
-//     message: '',
-//   };
-//   const projectJobs = await db.manyOrNone<ProjectJob>(
-//     `   SELECT  jobid,
-//                 zipname,
-//                 status,
-//                 progress,
-//                 TO_CHAR(cdt, 'DD/MM/YYYY') as uploadedDate
-//         FROM    tbl_projectjobs
-//         WHERE   1=1
-//                 AND project_id = $1
-//                 ORDER BY jobid DESC
-//     `,
-//     [projectID],
-//   );
-//   if (projectJobs) {
-//     result.success = true;
-//     result.message = 'Project jobs fetched successfully';
-//     result.jobs = projectJobs;
-//   }
-//   return result;
-// };
-
-// export interface UpdateJobStatusResult {
-//   success: boolean;
-//   message: string;
-// }
-
-// export const updateJobStatus = async (
-//   jobId: number,
-//   status: string,
-//   progress = 0,
-//   errorMessage?: string,
-// ): Promise<UpdateJobStatusResult> => {
-//   const result = {
-//     success: false,
-//     message: '',
-//   };
-
-//   const updateJobStatus = await db.oneOrNone(
-//     `
-//       UPDATE  tbl_projectjobs
-//       SET     status = $1,
-//               progress = $2,
-//               error_message = $3,
-//               completed_at = CASE
-//                               WHEN $1 IN ('COMPLETED', 'FAILED')
-//                               THEN NOW()
-//                               ELSE completed_at
-//                             END
-//       WHERE jobid = $4
-//     `,
-//     [status, progress, errorMessage, jobId],
-//   );
-
-//   if (updateJobStatus) {
-//     result.success = true;
-//     result.message = 'Job updated successfully';
-//   }
-//   return result;
-// };
-
-// export {
-//   createProject,
-//   getProjects,
-//   getProjectById,
-//   updateProject,
-//   deleteProject,
-//   getProjectFiles,
-//   uploadFilesToProject,
-//   deleteProjectFiles,
-//   getProjectFilesByIds,
-//   createJob,
-//   getJobsStatus,
-// };
+  return result;
+};

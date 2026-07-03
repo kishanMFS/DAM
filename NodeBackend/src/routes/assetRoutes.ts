@@ -5,6 +5,7 @@ import {
   getPresignedURL,
   uploadAssetDetails,
   getDashboardStats,
+  updateDownloadCount,
 } from '@/controllers/assetController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 
@@ -17,5 +18,6 @@ router.get('/', authMiddleware, getAssets);
 // router.get('/search', authMiddleware, searchAsset);
 router.post('/presigned-url', authMiddleware, getPresignedURL);
 router.get('/dashboard', authMiddleware, getDashboardStats);
+router.patch('/:fileId/download-count', authMiddleware, updateDownloadCount);
 
 export default router;

@@ -86,6 +86,31 @@ export const uploadAssetDetails = async (req: Request, res: Response): Promise<v
   }
 };
 
+export const updateDownloadCount = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { fileId } = req.params;
+    const response = await assetService.updateDownloadCountService(fileId);
+
+    if (!response.success) {
+      res.status(404).json(response);
+      return;
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    let errorMessage = 'Unable to update download count';
+    logger.error(errorMessage, {
+      message: error instanceof Error ? error.message : String(error),
+      // stack: error instanceof Error ? error.stack : undefined,
+      body: req.body,
+    });
+    if (!isProd) {
+      errorMessage = (error as Error).message;
+    }
+    res.status(500).json({ message: 'Unable to update download count', errorMessage });
+  }
+};
+
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const stats = await assetService.getDashboardStatsService();
