@@ -67,19 +67,11 @@ CREATE TABLE assets
     download_count integer DEFAULT 0 NOT NULL
 );
 
-CREATE TABLE asset_downloads
+CREATE TABLE assettags
 (
-    id UUID PRIMARY KEY,
-    asset_id UUID REFERENCES assets(id),
-    user_id UUID REFERENCES users(id),
-    downloaded_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE asset_views
-(
-    id UUID PRIMARY KEY,
-    asset_id UUID REFERENCES assets(id),
-    user_id UUID REFERENCES users(id),
-    viewed_at TIMESTAMP DEFAULT NOW()
-);
-
+    tagid uuid NOT NULL DEFAULT uuidv7(),
+    assetid uuid,
+    tags text COLLATE pg_catalog."default",
+    created_at timestamp without time zone DEFAULT now(),
+    CONSTRAINT assettags_pkey PRIMARY KEY (tagid)
+)

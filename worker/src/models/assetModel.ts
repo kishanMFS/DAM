@@ -10,7 +10,7 @@ export async function createAsset(
   originalName: string,
   storage_key: string,
 ) {
-  return db.one(
+  return await db.one(
     `
       INSERT INTO assets
       (
@@ -52,7 +52,7 @@ export async function updateAsset(
   fileSize: number,
   mimeType: string,
 ) {
-  db.none(
+  return db.none(
     `
         UPDATE assets
         SET
@@ -62,6 +62,23 @@ export async function updateAsset(
         WHERE id = $1
       `,
     [assetId, mimeType, fileSize],
+  );
+}
+
+export async function insertAssetTags(
+  assetId: string,
+  tags: Record<string, unknown>,
+) {
+  return db.none(
+    `
+        INSERT INTO assettags
+        (
+          assetid,
+          tags
+        )
+        VALUES ($1, $2)
+      `,
+    [assetId, JSON.stringify(tags)],
   );
 }
 
