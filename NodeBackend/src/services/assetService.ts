@@ -8,13 +8,18 @@ import crypto from 'crypto';
 // const isProd = env.isProd;
 const BUCKET_NAME = bucketName;
 
+const resolvePresignedUrl = (presignedUrl: string): string => {
+  const rewrittenUrl = replaceMinioUrl(presignedUrl);
+  return rewrittenUrl || presignedUrl;
+};
+
 export const getAssetsService = async (userid: string): Promise<ApiResponse<Asset[]>> => {
   const result = await assetModel.getAssets(userid);
   if (result.success) {
     const filesWithUrls = await Promise.all(
       result.Assets.map(async (asset) => ({
         ...asset,
-        downloadUrl: replaceMinioUrl(
+        downloadUrl: resolvePresignedUrl(
           await minio.presignedGetObject(BUCKET_NAME, asset.storage_key, 60 * 60),
         ),
       })),
@@ -46,7 +51,7 @@ export const getPresignedURLService = async (
     files.map(async (file) => {
       const objectName = `${Date.now()}-${crypto.randomUUID()}-${file.fileName}`;
 
-      const presignedUrl = replaceMinioUrl(
+      const presignedUrl = resolvePresignedUrl(
         await minio.presignedPutObject(BUCKET_NAME, objectName, 60 * 10),
       );
 

@@ -162,15 +162,40 @@ export async function processVideo(task: MediaTask, file: string) {
   const p480Object = `videos/480/${p480FileName}`;
   const p720Object = `videos/720/${p720FileName}`;
 
-  // Convert videos
-  await convert(file, p240, 240, task, p240FileName, p240Object);
-  await convert(file, p480, 480, task, p480FileName, p480Object);
-  await convert(file, p720, 720, task, p720FileName, p720Object);
+  // Convert videos in parallel
+  const conversions = [
+    {
+      outputPath: p240,
+      height: 240,
+      fileName: p240FileName,
+      objectName: p240Object,
+    },
+    {
+      outputPath: p480,
+      height: 480,
+      fileName: p480FileName,
+      objectName: p480Object,
+    },
+    {
+      outputPath: p720,
+      height: 720,
+      fileName: p720FileName,
+      objectName: p720Object,
+    },
+  ];
 
-  // Upload converted files
-  await minio.fPutObject(task.bucket, p240Object, p240);
-  await minio.fPutObject(task.bucket, p480Object, p480);
-  await minio.fPutObject(task.bucket, p720Object, p720);
+  await Promise.all(
+    conversions.map(({ outputPath, height, fileName, objectName }) =>
+      convert(file, outputPath, height, task, fileName, objectName),
+    ),
+  );
+
+  // Upload converted files in parallel
+  await Promise.all([
+    minio.fPutObject(task.bucket, p240Object, p240),
+    minio.fPutObject(task.bucket, p480Object, p480),
+    minio.fPutObject(task.bucket, p720Object, p720),
+  ]);
 
   // Create thumbnail
   const thumbDir = path.resolve("temp/thumbnails");
