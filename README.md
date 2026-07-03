@@ -2,6 +2,8 @@
 
 Digital Asset Management (DAM) Platform. Companies today generate and manage a large volume of digital assets — including images, videos, and documents — across multiple teams, projects, and marketing channels.
 
+![DAM Architecture](architecture.svg)
+
 ## **Repository structure**
 
 ```
@@ -99,20 +101,6 @@ Or:
 
 ```bash
 npm run composedown
-```
-
-## **Useful Docker commands**
-
-```bash
-docker compose ps
-
-docker compose logs -f backend
-
-docker compose logs -f worker
-
-docker compose logs -f minio
-
-docker compose exec postgres psql -U admin -d dam
 ```
 
 ## **Configuration notes**
