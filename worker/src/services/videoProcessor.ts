@@ -58,7 +58,7 @@ function convert(
 
         await assetModel.updateAssetProgress(
           assetid,
-          progress.percent!,
+          progress.percent! || 0,
           "processing",
         );
       })
