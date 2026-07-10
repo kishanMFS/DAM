@@ -25,5 +25,23 @@ export default ({ mode }) => {
     preview: {
       port: Number(env.VITE_PORT),
     },
+    build: {
+      target: "esnext",
+      cssCodeSplit: true,
+      sourcemap: false,
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("src")) {
+              return "app";
+            }
+            if (id.includes("node_modules")) {
+              return "lib";
+            }
+          },
+        },
+      },
+    },
   });
 };
