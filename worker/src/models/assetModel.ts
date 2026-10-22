@@ -1,5 +1,5 @@
 import db from "../utils/db.js";
-import type { Asset, AssetFile, MediaTask } from "../types/assetTypes.js";
+import type { Asset, AssetFile, MediaTask } from "@dam/shared-types";
 // import { RandomUUIDOptions } from 'node:crypto';
 // import { UUID } from 'crypto';
 

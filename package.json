@@ -1,6 +1,17 @@
 {
+  "name": "DAM",
+  "private": true,
+  "workspaces": [
+    "ReactFrontend",
+    "NodeBackend",
+    "worker",
+    "packages/shared-types"
+  ],
   "scripts": {
-    "prepare": "husky",
+    "react": "npm run dev --workspace=./ReactFrontend",
+    "node": "npm run build --workspace=./NodeBackend && npm run start --workspace=./NodeBackend",
+    "worker": "npm run dev --workspace=./worker",
+    "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') require('child_process').execSync('husky', { stdio: 'inherit' })\"",
     "composeup": "docker compose up -d --build",
     "composedown": "docker compose down"
   },
@@ -23,5 +34,11 @@
     "*.{json,md,yml,yaml,css,scss}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "amqplib": "^2.0.1",
+    "minio": "^8.0.7",
+    "pg-promise": "^12.7.0",
+    "winston": "^3.19.0"
   }
 }

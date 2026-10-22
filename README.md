@@ -53,6 +53,9 @@ Digital Asset Management (DAM) Platform. Companies today generate and manage a l
 │       ├── services/
 │       ├── types/
 │       └── utils/
+├── packages/
+│   └── shared-types/
+│       └── index.d.ts
 ├── db/
 │   └── init.sql
 ├── minio/
@@ -69,6 +72,25 @@ Digital Asset Management (DAM) Platform. Companies today generate and manage a l
 - Docker Desktop or Docker Engine installed
 - Docker Compose support (`docker compose`)
 - Git installed for cloning the repository
+- Node.js and npm for local development
+
+## **Local development**
+
+Install dependencies once from the repository root; npm workspaces share the root installation and lockfile:
+
+```bash
+npm install
+```
+
+The root manifest owns the `pg-promise`, `minio`, `winston`, and `amqplib` dependencies used by both the backend and worker. Their shared asset and media-task contracts are maintained in `packages/shared-types`.
+
+Start an application from the root:
+
+```bash
+npm run react
+npm run node
+npm run worker
+```
 
 ## **Local Docker deployment**
 

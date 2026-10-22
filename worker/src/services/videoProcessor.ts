@@ -10,7 +10,8 @@ import logger from "../utils/winston.js";
 import path from "path";
 // import { uploadObject } from "./minio";
 import { minio } from "../utils/minio.js";
-import { MediaTask, VideoStream } from "../types/assetTypes.js";
+import type { MediaTask } from "@dam/shared-types";
+import type { VideoStream } from "../types/videoTypes.js";
 import { randomUUID } from "crypto";
 
 ffmpeg.setFfmpegPath(ffmpegPath as unknown as string);
