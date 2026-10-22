@@ -4,6 +4,15 @@ export interface UploadFile {
   preview: string;
   size: number;
   type: string;
-  uploaded?: boolean;
-  uploadProgress?: number;
+}
+
+export interface ActiveUploadProgress {
+  id: string;
+  objectName: string;
+  originalName: string;
+  preview: string;
+  mimeType: string;
+  size: number;
+  progress: number;
+  uploaded: boolean;
 }
