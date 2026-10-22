@@ -5,6 +5,7 @@ import fs from "fs";
 import { minio } from "./utils/minio.js";
 import { processVideo } from "./services/videoProcessor.js";
 import { processImage } from "./services/imageProcessor.js";
+import type { MediaTask } from "@dam/shared-types";
 
 const rabbitMQhost = process.env.RABBITMQ_URL || "";
 
@@ -59,7 +60,9 @@ const startWorker = async (): Promise<void> => {
       queueName,
       (msg: ConsumeMessage | null) => {
         if (msg !== null) {
-          const task = JSON.parse(msg.content.toString());
+          const task: MediaTask = JSON.parse(
+            msg.content.toString(),
+          ) as MediaTask;
 
           // Simulate processing/business logic
           setTimeout(async () => {

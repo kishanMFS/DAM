@@ -8,7 +8,7 @@ import { randomUUID } from "crypto";
 import { minio } from "../utils/minio.js";
 import logger from "../utils/winston.js";
 import * as assetModel from "../models/assetModel.js";
-import { MediaTask } from "../types/assetTypes.js";
+import type { MediaTask } from "@dam/shared-types";
 
 export async function processImage(task: MediaTask, filePath: string) {
   const thumbDir = path.resolve("temp/thumbnails");

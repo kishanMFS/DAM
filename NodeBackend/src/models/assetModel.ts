@@ -1,5 +1,5 @@
 import db from '@/utils/db.js';
-import type { Asset, AssetFile } from '@/types/assetTypes.js';
+import type { Asset, AssetFile } from '@dam/shared-types';
 // import { randomUUID } from 'crypto';
 // import { UUID } from 'crypto';
 

@@ -26,7 +26,9 @@ services:
       - app-network
 
   backend:
-    build: ./NodeBackend
+    build:
+      context: .
+      dockerfile: NodeBackend/Dockerfile
     container_name: backend
     ports:
       - "3002:3002"
@@ -72,6 +74,9 @@ services:
   minio:
     image: quay.io/minio/aistor/minio:RELEASE.2026-06-06T02-44-06Z
     container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     expose:
       - "9000"
       - "9001"
@@ -88,7 +93,9 @@ services:
       - app-network
 
   worker:
-    build: ./worker
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
     container_name: worker
     env_file:
       - ./worker/.env.production

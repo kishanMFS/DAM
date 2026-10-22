@@ -1,4 +1,4 @@
-import type { Asset, ApiResponse, AssetFile } from '@/types/assetTypes.js';
+import type { Asset, ApiResponse, AssetFile } from '@dam/shared-types';
 import sendTask from '../utils/producer.js';
 import * as assetModel from '@/models/assetModel.js';
 import { minio, bucketName, replaceMinioUrl } from '../utils/minio.js';

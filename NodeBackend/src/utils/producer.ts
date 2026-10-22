@@ -1,6 +1,6 @@
 import amqp from 'amqplib';
 import logger from '../utils/winston.js';
-import { MediaTask } from '../types/assetTypes.js';
+import type { MediaTask } from '@dam/shared-types';
 
 const rabbitMQhost = process.env.RABBITMQ_URL || '';
 
