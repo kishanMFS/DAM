@@ -6,8 +6,9 @@ import {
   uploadAssetDetails,
   getDashboardStats,
   updateDownloadCount,
+  deleteAsset,
 } from '@/controllers/assetController.js';
-import authMiddleware from '../middleware/authMiddleware.js';
+import authMiddleware, { requireAdmin } from '../middleware/authMiddleware.js';
 import { validateRequest } from '../middleware/requestValidation.js';
 import {
   validateAssetFiles,
@@ -20,7 +21,6 @@ const router: Router = express.Router();
 router.post('/', authMiddleware, validateAssetFiles, validateRequest, uploadAssetDetails);
 router.get('/', authMiddleware, getAssets);
 // router.get('/:id', authMiddleware, getAsset);
-// router.delete('/:id', authMiddleware, deleteUser);
 // router.get('/search', authMiddleware, searchAsset);
 router.post(
   '/presigned-url',
@@ -36,6 +36,14 @@ router.patch(
   validateFileId,
   validateRequest,
   updateDownloadCount,
+);
+router.delete(
+  '/:fileId',
+  authMiddleware,
+  requireAdmin,
+  validateFileId,
+  validateRequest,
+  deleteAsset,
 );
 
 export default router;

@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useApi } from "../hooks/useAPI";
 import {
@@ -7,6 +8,7 @@ import {
 } from "../services/fileService";
 import fileService from "../services/fileService";
 import type { ActiveUploadProgress } from "../types/fileTypes";
+import useErrorContext from "../hooks/useError";
 
 const VideoPlayer = memo(
   ({ src }: { src: string }) => (
@@ -16,6 +18,7 @@ const VideoPlayer = memo(
 );
 
 type GalleryProps = {
+  isAdmin?: boolean;
   shouldPoll?: boolean;
   onPollingStopped?: () => void;
   sourceObjectNames?: string[];
@@ -40,6 +43,7 @@ const getResolution = (file: UploadFileResponse) => {
 };
 
 export default function Gallery({
+  isAdmin = false,
   shouldPoll = false,
   onPollingStopped,
   sourceObjectNames = [],
@@ -48,6 +52,9 @@ export default function Gallery({
 }: GalleryProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isPolling, setIsPolling] = useState(false);
+  const [deletingAssetIds, setDeletingAssetIds] = useState<string[]>([]);
+  const queryClient = useQueryClient();
+  const { showErrorMessage } = useErrorContext();
   const sourceObjectNamesRef = useRef(sourceObjectNames);
 
   useEffect(() => {
@@ -226,6 +233,38 @@ export default function Gallery({
     await fileService.updateDownloadCount(fileId);
   };
 
+  const handleDelete = async (file: UploadFileResponse) => {
+    if (
+      !window.confirm(
+        `Delete "${file.original_name}" and any generated variants? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setDeletingAssetIds((ids) => [...ids, file.id]);
+    try {
+      await fileService.deleteAsset(file.id);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["getfiles"] }),
+        queryClient.invalidateQueries({ queryKey: ["adminStats"] }),
+      ]);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : error &&
+              typeof error === "object" &&
+              "message" in error &&
+              typeof error.message === "string"
+            ? error.message
+            : "Unable to delete asset";
+      showErrorMessage(message);
+    } finally {
+      setDeletingAssetIds((ids) => ids.filter((id) => id !== file.id));
+    }
+  };
+
   return (
     <div>
       {/* Uploaded Files */}
@@ -401,21 +440,52 @@ export default function Gallery({
                     </div>
                   )}
 
-                {file.downloadUrl && (
-                  <button
-                    onClick={(e) =>
-                      handleDownload(
-                        file.id,
-                        file.downloadUrl,
-                        file.original_name,
-                        e,
-                      )
-                    }
-                    className="text-xs font-semibold uppercase cursor-pointer tracking-wide text-blue-600 hover:text-blue-800 mt-3"
-                  >
-                    Download
-                  </button>
-                )}
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  {file.downloadUrl && (
+                    <button
+                      onClick={(e) =>
+                        handleDownload(
+                          file.id,
+                          file.downloadUrl,
+                          file.original_name,
+                          e,
+                        )
+                      }
+                      className="text-xs font-semibold uppercase cursor-pointer tracking-wide text-blue-600 hover:text-blue-800"
+                    >
+                      Download
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => void handleDelete(file)}
+                      disabled={deletingAssetIds.includes(file.id)}
+                      aria-label={`Delete ${file.original_name}`}
+                      title="Delete asset and generated variants"
+                      className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingAssetIds.includes(file.id) ? (
+                        <span className="text-xs">...</span>
+                      ) : (
+                        <svg
+                          aria-hidden="true"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          className="h-5 w-5"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M3 6h18m-2 0-.9 13.1a2 2 0 0 1-2 1.9H7.9a2 2 0 0 1-2-1.9L5 6m3 0V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m-6 4v7m4-7v7"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

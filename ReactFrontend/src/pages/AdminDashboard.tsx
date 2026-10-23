@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Gallery from "../components/Gallery";
-import fileService from "../services/fileService";
 import useErrorContext from "../hooks/useError";
+import { useApi } from "../hooks/useAPI";
 
 type DashboardStats = {
   totalAssets: number;
@@ -10,30 +10,41 @@ type DashboardStats = {
   storageUsed: number; // bytes
 };
 
+type DashboardStatsResponse = {
+  success: boolean;
+  message: string;
+  data: DashboardStats;
+};
+
+const emptyStats: DashboardStats = {
+  totalAssets: 0,
+  totalUsers: 0,
+  totalDownloads: 0,
+  storageUsed: 0,
+};
+
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalAssets: 0,
-    totalUsers: 0,
-    totalDownloads: 0,
-    storageUsed: 0,
-  });
   const { showErrorMessage } = useErrorContext();
+  const { data: statsResponse, error } = useApi<DashboardStatsResponse>({
+    queryKey: ["adminStats"],
+    url: "/assets/dashboard",
+    method: "GET",
+  });
+  const stats = statsResponse?.data ?? emptyStats;
 
   useEffect(() => {
-    const getDashboard = async () => {
-      try {
-        const adminStats = await fileService.getAdminStats();
-        setStats(adminStats.data);
-      } catch (err) {
-        // console.error(err);
-        if (err instanceof Error) {
-          showErrorMessage(err.message);
-        }
-      }
-    };
-
-    getDashboard();
-  }, []);
+    if (!error) return;
+    const message =
+      error instanceof Error
+        ? error.message
+        : error &&
+            typeof error === "object" &&
+            "message" in error &&
+            typeof error.message === "string"
+          ? error.message
+          : "Unable to fetch dashboard statistics";
+    showErrorMessage(message);
+  }, [error, showErrorMessage]);
 
   return (
     <div>
@@ -69,7 +80,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <Gallery />
+      <Gallery isAdmin />
     </div>
   );
 }

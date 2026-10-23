@@ -268,6 +268,9 @@ describe("UserDashboard test cases", () => {
     expect(progressInner).toBeTruthy();
     expect(progressInner).toHaveAttribute("aria-valuenow", "45");
     expect(screen.getByText("45%")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /delete video\.mp4/i }),
+    ).not.toBeInTheDocument();
   });
 
   test("keeps polling until all three lowercase-parent video variants are listed", async () => {
@@ -390,5 +393,62 @@ describe("UserDashboard test cases", () => {
     expect(
       screen.getByRole("progressbar", { name: "Uploading video.mp4" }),
     ).toHaveAttribute("aria-valuenow", "50");
+  });
+
+  test("admin can confirm deletion and gallery refreshes", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const file = {
+      id: "123e4567-e89b-12d3-a456-426614174000",
+      original_name: "video.mp4",
+      downloadUrl: "https://cdn.example/video.mp4",
+      mime_type: "video/mp4",
+      file_size: 12.34,
+      parentid: null,
+    };
+    queryClient.setQueryData(["getfiles"], { data: [file] });
+    const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+    fetchMock.mockImplementation((_input, init) =>
+      Promise.resolve(
+        createFetchResponse(
+          init?.method === "DELETE"
+            ? {
+                success: true,
+                message: "Asset and generated variants deleted successfully",
+                data: { deletedCount: 4 },
+              }
+            : { success: true, data: [] },
+        ),
+      ),
+    );
+    const confirmMock = jest.fn(() => true);
+    Object.defineProperty(globalThis, "confirm", {
+      value: confirmMock,
+      writable: true,
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ErrorContextProvider>
+          <Gallery isAdmin />
+        </ErrorContextProvider>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Delete video.mp4" }),
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(`/assets/${file.id}`),
+        expect.objectContaining({ method: "DELETE" }),
+      );
+      expect(screen.queryByText("video.mp4")).not.toBeInTheDocument();
+    });
+    expect(confirmMock).toHaveBeenCalledWith(
+      expect.stringContaining("generated variants"),
+    );
   });
 });

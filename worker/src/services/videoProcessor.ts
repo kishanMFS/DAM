@@ -36,9 +36,9 @@ function convert(
   task: MediaTask,
   originalName: string,
   storage_key: string,
-) {
+): Promise<string> {
   let assetid = randomUUID();
-  return new Promise((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     ffmpeg(input)
       .videoCodec("libx264")
       .size(`?x${height}`)
@@ -96,7 +96,7 @@ function convert(
         await assetModel.updateAssetStatus(assetid, "complete");
 
         console.log("Video conversion completed.");
-        resolve("");
+        resolve(assetid);
       })
       .on("error", async (err) => {
         await assetModel.updateAssetStatus(assetid, "error");
@@ -185,7 +185,7 @@ export async function processVideo(task: MediaTask, file: string) {
     },
   ];
 
-  await Promise.all(
+  const conversionAssetIds = await Promise.all(
     conversions.map(({ outputPath, height, fileName, objectName }) =>
       convert(file, outputPath, height, task, fileName, objectName),
     ),
@@ -198,13 +198,33 @@ export async function processVideo(task: MediaTask, file: string) {
     minio.fPutObject(task.bucket, p720Object, p720),
   ]);
 
+  const conversionAssets = await Promise.all(
+    conversions.map(async ({ objectName }, index) => ({
+      objectName,
+      exists: await assetModel.assetExists(conversionAssetIds[index]),
+    })),
+  );
+  await Promise.all(
+    conversionAssets
+      .filter((asset) => !asset.exists)
+      .map(({ objectName }) => minio.removeObject(task.bucket, objectName)),
+  );
+
   // Create thumbnail
   const thumbDir = path.resolve("temp/thumbnails");
   fs.mkdirSync(thumbDir, { recursive: true });
 
   const thumbPath = path.join(thumbDir, `${baseName}.jpg`);
+  const thumbObject = `thumbnails/${baseName}.jpg`;
 
   await thumbnail(file, thumbPath);
 
-  await minio.fPutObject(task.bucket, `thumbnails/${baseName}.jpg`, thumbPath);
+  await minio.fPutObject(task.bucket, thumbObject, thumbPath);
+  const thumbnailLinked = await assetModel.updateThumbnailKey(
+    task.fileid,
+    thumbObject,
+  );
+  if (!thumbnailLinked) {
+    await minio.removeObject(task.bucket, thumbObject);
+  }
 }

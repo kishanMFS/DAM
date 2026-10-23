@@ -42,6 +42,14 @@ export interface PresignedUrlsResponse {
   data: PresignedUrlResponse[];
 }
 
+export interface DeleteAssetResponse {
+  success: boolean;
+  message: string;
+  data: {
+    deletedCount: number;
+  };
+}
+
 const fileService = {
   uploadFile: async (file: File) => {
     const formData = new FormData();
@@ -65,12 +73,6 @@ const fileService = {
       url: "/assets/presigned-url",
       method: "POST",
       body: { files },
-    }),
-
-  getAdminStats: async () =>
-    apiClient({
-      url: "/assets/dashboard",
-      method: "GET",
     }),
 
   storeFilesMetadata: async (
@@ -126,6 +128,12 @@ const fileService = {
     apiClient({
       url: `/assets/${fileId}/download-count`,
       method: "PATCH",
+    }),
+
+  deleteAsset: async (fileId: string) =>
+    apiClient<DeleteAssetResponse>({
+      url: `/assets/${fileId}`,
+      method: "DELETE",
     }),
 };
 

@@ -122,3 +122,43 @@ export const updateDownloadCount = async (fileId: string) => {
 
   return result;
 };
+
+export interface AssetStorageObject {
+  id: string;
+  storage_key: string | null;
+  thumbnail_key: string | null;
+}
+
+export const deleteAssetTree = async (
+  assetId: string,
+  removeStorageObjects: (objectNames: string[]) => Promise<void>,
+): Promise<AssetStorageObject[] | null> =>
+  db.tx(async (transaction) => {
+    const assets = await transaction.manyOrNone<AssetStorageObject>(
+      `
+        SELECT id, storage_key, thumbnail_key
+        FROM assets
+        WHERE id = $1 OR parentid = $1
+        FOR UPDATE
+      `,
+      [assetId],
+    );
+
+    if (assets.length === 0) return null;
+
+    const objectNames = [
+      ...new Set(
+        assets.flatMap((asset) =>
+          [asset.storage_key, asset.thumbnail_key].filter((key): key is string => Boolean(key)),
+        ),
+      ),
+    ];
+
+    await removeStorageObjects(objectNames);
+
+    const assetIds = assets.map((asset) => asset.id);
+    await transaction.none('DELETE FROM assettags WHERE assetid = ANY($1::uuid[])', [assetIds]);
+    await transaction.none('DELETE FROM assets WHERE id = ANY($1::uuid[])', [assetIds]);
+
+    return assets;
+  });

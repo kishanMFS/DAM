@@ -148,16 +148,17 @@ The Node backend exposes the following REST endpoints under the base URL `http:/
 
 > Protected endpoints require a valid `access_token` cookie unless noted otherwise.
 
-| Endpoint                             | Method  | Description                                                                      |
-| ------------------------------------ | ------- | -------------------------------------------------------------------------------- |
-| `/api/auth/login`                    | `POST`  | Authenticates a user with email and password and sets the access token cookie.   |
-| `/api/auth/logout`                   | `POST`  | Clears the authentication cookie and ends the current session.                   |
-| `/api/auth/verify`                   | `GET`   | Verifies whether the current access token is valid.                              |
-| `/api/assets`                        | `POST`  | Uploads asset metadata for a new asset. Requires authentication.                 |
-| `/api/assets`                        | `GET`   | Retrieves the list of assets for the current user or all assets for admin users. |
-| `/api/assets/presigned-url`          | `POST`  | Requests a pre-signed URL for direct upload of an asset to storage.              |
-| `/api/assets/dashboard`              | `GET`   | Returns dashboard statistics for the DAM application.                            |
-| `/api/assets/:fileId/download-count` | `PATCH` | Increments the download count for a specific asset file.                         |
+| Endpoint                             | Method   | Description                                                                      |
+| ------------------------------------ | -------- | -------------------------------------------------------------------------------- |
+| `/api/auth/login`                    | `POST`   | Authenticates a user with email and password and sets the access token cookie.   |
+| `/api/auth/logout`                   | `POST`   | Clears the authentication cookie and ends the current session.                   |
+| `/api/auth/verify`                   | `GET`    | Verifies whether the current access token is valid.                              |
+| `/api/assets`                        | `POST`   | Uploads asset metadata for a new asset. Requires authentication.                 |
+| `/api/assets`                        | `GET`    | Retrieves the list of assets for the current user or all assets for admin users. |
+| `/api/assets/presigned-url`          | `POST`   | Requests a pre-signed URL for direct upload of an asset to storage.              |
+| `/api/assets/dashboard`              | `GET`    | Returns dashboard statistics for the DAM application.                            |
+| `/api/assets/:fileId/download-count` | `PATCH`  | Increments the download count for a specific asset file.                         |
+| `/api/assets/:fileId`                | `DELETE` | Deletes an asset and its generated variants; admin access required.              |
 
 ## **Recommended development flow**
 

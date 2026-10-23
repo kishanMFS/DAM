@@ -117,6 +117,45 @@ export const updateDownloadCount = async (req: Request, res: Response): Promise<
   }
 };
 
+export const deleteAsset = async (req: Request, res: Response): Promise<void> => {
+  const fileId = req.params.fileId;
+  if (typeof fileId !== 'string') {
+    res.status(400).json({ success: false, message: 'Invalid fileId' });
+    return;
+  }
+
+  try {
+    const deletedCount = await assetService.deleteAssetService(fileId);
+
+    if (deletedCount === 0) {
+      res.status(404).json({
+        success: false,
+        message: 'Asset not found',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Asset and generated variants deleted successfully',
+      data: { deletedCount },
+    });
+  } catch (error) {
+    logger.error('Error deleting asset', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      fileId,
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Unable to delete asset',
+      ...(!isProd && {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      }),
+    });
+  }
+};
+
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const stats = await assetService.getDashboardStatsService();

@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import * as authService from '../src/services/authService';
+import * as authService from '../src/services/authService.js';
 
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 

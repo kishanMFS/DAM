@@ -45,6 +45,10 @@ export async function processImage(task: MediaTask, filePath: string) {
 
     // Upload thumbnail
     await minio.fPutObject(task.bucket, thumbObject, thumbPath);
+    if (!(await assetModel.assetExists(assetid))) {
+      await minio.removeObject(task.bucket, thumbObject);
+      return;
+    }
 
     await assetModel.updateAssetProgress(assetid, 90, "processing");
 

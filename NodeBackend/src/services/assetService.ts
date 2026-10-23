@@ -123,3 +123,11 @@ export const updateDownloadCountService = async (fileId: string): Promise<ApiRes
     data: result.data,
   };
 };
+
+export const deleteAssetService = async (assetId: string): Promise<number> => {
+  const deletedAssets = await assetModel.deleteAssetTree(assetId, async (objectNames) => {
+    await Promise.all(objectNames.map((objectName) => minio.removeObject(BUCKET_NAME, objectName)));
+  });
+
+  return deletedAssets?.length ?? 0;
+};
