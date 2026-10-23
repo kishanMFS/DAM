@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "react": "npm run dev --workspace=./ReactFrontend",
-    "node": "npm run build --workspace=./NodeBackend && npm run start --workspace=./NodeBackend",
+    "node": "npm run start --workspace=./NodeBackend && npm run build --workspace=./NodeBackend",
     "worker": "npm run dev --workspace=./worker",
     "prepare": "node -e \"if (process.env.NODE_ENV !== 'production') require('child_process').execSync('husky', { stdio: 'inherit' })\"",
     "composeup": "docker compose up -d --build",

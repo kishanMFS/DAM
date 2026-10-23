@@ -77,18 +77,20 @@ export const uploadAssetDetailsService = async (
 ): Promise<ApiResponse> => {
   const result = await assetModel.insertAssetDetails(files, userid);
 
-  // Send each uploaded file to RabbitMQ
-  files.forEach((file, index) => {
-    const insertedFile = result.data[index];
-    sendTask({
-      fileid: insertedFile.id,
-      original_name: insertedFile.original_name,
-      objectName: file.objectName,
-      bucket: BUCKET_NAME,
-      fileType: file.fileType,
-      userid,
-    });
-  });
+  // Wait for broker confirms so a failed publish is surfaced to the API caller.
+  await Promise.all(
+    files.map(async (file, index) => {
+      const insertedFile = result.data[index];
+      await sendTask({
+        fileid: insertedFile.id,
+        original_name: insertedFile.original_name,
+        objectName: file.objectName,
+        bucket: BUCKET_NAME,
+        fileType: file.fileType,
+        userid,
+      });
+    }),
+  );
 
   return result;
 };

@@ -6,6 +6,7 @@ import errorHandler from './middleware/errorHandler.js';
 import cookies from 'cookie-parser';
 import helmet from 'helmet';
 import { initializeMinio } from './utils/minio.js';
+import { closeProducer } from './utils/producer.js';
 
 // initialize minio bucket
 initializeMinio();
@@ -52,3 +53,25 @@ app.use(globalErrorHandler);
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+const shutdown = (signal: NodeJS.Signals) => {
+  console.log(`Received ${signal}, shutting down HTTP server`);
+  httpServer.close((error) => {
+    void closeProducer()
+      .then(() => {
+        if (error) {
+          console.error('HTTP server shutdown failed', error);
+          process.exitCode = 1;
+          return;
+        }
+        console.log('HTTP server and RabbitMQ producer shut down');
+      })
+      .catch((producerError: unknown) => {
+        console.error('RabbitMQ producer shutdown failed', producerError);
+        process.exitCode = 1;
+      });
+  });
+};
+
+process.once('SIGINT', shutdown);
+process.once('SIGTERM', shutdown);
