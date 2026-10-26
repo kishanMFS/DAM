@@ -13,8 +13,20 @@ const resolvePresignedUrl = (presignedUrl: string): string => {
   return rewrittenUrl || presignedUrl;
 };
 
-export const getAssetsService = async (userid: string): Promise<ApiResponse<Asset[]>> => {
-  const result = await assetModel.getAssets(userid);
+export const getAssetsService = async (
+  userid: string,
+  options: {
+    limit: number;
+    offset: number;
+    search?: string;
+    sourceObjectNames?: string[];
+  },
+): Promise<
+  ApiResponse<Asset[]> & {
+    pagination: { total: number; limit: number; offset: number };
+  }
+> => {
+  const result = await assetModel.getAssets(userid, options);
   if (result.success) {
     const filesWithUrls = await Promise.all(
       result.Assets.map(async (asset) => ({
@@ -32,6 +44,11 @@ export const getAssetsService = async (userid: string): Promise<ApiResponse<Asse
     success: result.success,
     message: result.message,
     data: result.Assets,
+    pagination: {
+      total: result.total,
+      limit: options.limit,
+      offset: options.offset,
+    },
   };
 };
 

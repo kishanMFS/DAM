@@ -26,6 +26,11 @@ export interface UploadFilesResponse {
   success: boolean;
   message: string;
   data: UploadFileResponse[];
+  pagination?: {
+    total: number;
+    limit: number;
+    offset: number;
+  };
 }
 
 export interface PresignedUrlRequest {
@@ -62,10 +67,16 @@ const fileService = {
     });
   },
 
-  getFilesFromWinio: () =>
-    apiClient<FileListResponse>({
-      url: "/api/assets",
+  getFilesFromWinio: (params?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    sourceObjectNames?: string;
+  }) =>
+    apiClient<UploadFilesResponse>({
+      url: "/assets",
       method: "GET",
+      params,
     }),
 
   getPresignedUrls: async (files: PresignedUrlRequest[]) =>

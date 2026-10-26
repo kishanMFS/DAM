@@ -9,7 +9,9 @@ import {
 import fileService from "../services/fileService";
 import type { ActiveUploadProgress } from "../types/fileTypes";
 import useErrorContext from "../hooks/useError";
+import GalleryPagination from "./GalleryPagination";
 
+const PAGE_SIZE = 8;
 const VideoPlayer = memo(
   ({ src }: { src: string }) => (
     <video src={src} controls className="h-full w-full object-cover" />
@@ -51,11 +53,21 @@ export default function Gallery({
   onUploadsSynced,
 }: GalleryProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [offset, setOffset] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
   const [deletingAssetIds, setDeletingAssetIds] = useState<string[]>([]);
   const queryClient = useQueryClient();
   const { showErrorMessage } = useErrorContext();
   const sourceObjectNamesRef = useRef(sourceObjectNames);
+  const galleryQueryKey = ["getfiles", offset, debouncedSearch];
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   useEffect(() => {
     sourceObjectNamesRef.current = sourceObjectNames;
@@ -64,13 +76,27 @@ export default function Gallery({
   // Fetch uploaded files
   const { data: fileListData, refetch: refetchFiles } =
     useApi<UploadFilesResponse>({
-      queryKey: ["getfiles"],
+      queryKey: galleryQueryKey,
       url: "/assets",
       method: "GET",
       enabled: true,
+      params: {
+        limit: PAGE_SIZE,
+        offset,
+        search: debouncedSearch || undefined,
+      },
     });
 
-  const uploadedFiles = useMemo(() => fileListData?.data ?? [], [fileListData]);
+  const uploadedFiles = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          (fileListData?.data ?? []).map((file) => [file.id, file]),
+        ).values(),
+      ),
+    [fileListData],
+  );
+  const totalAssets = fileListData?.pagination?.total ?? uploadedFiles.length;
   const syncedObjectNames = useMemo(
     () =>
       uploadedFiles
@@ -88,52 +114,17 @@ export default function Gallery({
   const pendingUploads = activeUploads.filter(
     (upload) => !syncedObjectNames.includes(upload.objectName),
   );
-  const searchLower = searchQuery.toLowerCase();
 
-  const collectTagValues = (value: unknown, results: string[]) => {
-    if (value === null || value === undefined) return;
-
-    if (
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean"
-    ) {
-      results.push(String(value));
-      return;
-    }
-
-    if (Array.isArray(value)) {
-      value.forEach((item) => collectTagValues(item, results));
-      return;
-    }
-
-    if (typeof value === "object") {
-      Object.values(value).forEach((item) => collectTagValues(item, results));
-    }
-  };
-
-  const filteredFiles = uploadedFiles.filter((file: UploadFileResponse) => {
-    if (!searchLower) return true;
-
-    const tags = file.tags;
-    if (!tags || typeof tags !== "object") {
-      return false;
-    }
-
-    const tagValues: string[] = [];
-    collectTagValues(tags, tagValues);
-
-    return tagValues.some((value) => value.toLowerCase().includes(searchLower));
-  });
-
-  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null,
-  );
+  const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingRunIdRef = useRef(0);
+  const pollingActiveRef = useRef(false);
 
   const stopPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
+    pollingRunIdRef.current += 1;
+    pollingActiveRef.current = false;
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
     }
 
     setIsPolling(false);
@@ -142,56 +133,94 @@ export default function Gallery({
 
   // Keep polling until all derived assets have finished processing.
   const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) return;
+    if (pollingActiveRef.current || sourceObjectNamesRef.current.length === 0) {
+      return;
+    }
 
+    pollingActiveRef.current = true;
+    const runId = ++pollingRunIdRef.current;
     setIsPolling(true);
 
-    pollingIntervalRef.current = window.setInterval(async () => {
-      const latestResponse = await refetchFiles();
-      const latestFiles = latestResponse.data?.data ?? [];
-      const sourceFiles = latestFiles.filter(
-        (file) =>
-          file.storage_key &&
-          sourceObjectNamesRef.current.includes(file.storage_key),
-      );
-      const derivedFiles = latestFiles.filter(
-        (file) => file.parentId != null || file.parentid != null,
-      );
-      const allComplete =
-        sourceFiles.length === sourceObjectNamesRef.current.length &&
-        sourceFiles.length > 0 &&
-        sourceFiles.every((source) => {
-          const variants = derivedFiles.filter(
-            (file) => (file.parentId ?? file.parentid) === source.id,
-          );
-          const sourceDimensions = source.tags?.dimensions;
-          const sourceHeight =
-            sourceDimensions &&
-            typeof sourceDimensions === "object" &&
-            "height" in sourceDimensions &&
-            typeof sourceDimensions.height === "number"
-              ? sourceDimensions.height
-              : 0;
-          const expectedVariants = source.mime_type?.startsWith("video/")
-            ? sourceHeight >= 1080
-              ? 4
-              : 3
-            : 1;
+    const poll = async () => {
+      if (pollingRunIdRef.current !== runId) return;
+      pollingTimeoutRef.current = null;
+      try {
+        const [, processingResponse] = await Promise.all([
+          refetchFiles(),
+          fileService.getFilesFromWinio({
+            sourceObjectNames: JSON.stringify(sourceObjectNamesRef.current),
+          }),
+        ]);
+        if (pollingRunIdRef.current !== runId) return;
+        const latestFiles = processingResponse.data ?? [];
+        const sourceFiles = latestFiles.filter(
+          (file) =>
+            file.storage_key &&
+            sourceObjectNamesRef.current.includes(file.storage_key),
+        );
+        const derivedFiles = latestFiles.filter(
+          (file) => file.parentId != null || file.parentid != null,
+        );
+        const allComplete =
+          sourceFiles.length === sourceObjectNamesRef.current.length &&
+          sourceFiles.length > 0 &&
+          sourceFiles.every((source) => {
+            const variants = derivedFiles.filter(
+              (file) => (file.parentId ?? file.parentid) === source.id,
+            );
+            const sourceDimensions = source.tags?.dimensions;
+            const sourceHeight =
+              sourceDimensions &&
+              typeof sourceDimensions === "object" &&
+              "height" in sourceDimensions &&
+              typeof sourceDimensions.height === "number"
+                ? sourceDimensions.height
+                : 0;
+            const expectedVariants = source.mime_type?.startsWith("video/")
+              ? sourceHeight >= 1080
+                ? 4
+                : 3
+              : 1;
 
-          return (
-            variants.length >= expectedVariants &&
-            variants.every(
-              (file) => file.status === "complete" || file.status === "error",
-            )
-          );
-        });
+            return (
+              variants.length >= expectedVariants &&
+              variants.every(
+                (file) => file.status === "complete" || file.status === "error",
+              )
+            );
+          });
 
-      if (allComplete) stopPolling();
+        if (allComplete) {
+          await queryClient.invalidateQueries({ queryKey: ["getfiles"] });
+          stopPolling();
+          return;
+        }
+      } catch (error) {
+        if (pollingRunIdRef.current !== runId) return;
+        showErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to refresh processing status",
+        );
+        stopPolling();
+        return;
+      }
+      if (pollingRunIdRef.current === runId) {
+        pollingTimeoutRef.current = window.setTimeout(() => {
+          void poll();
+        }, 800);
+      }
+    };
+
+    pollingTimeoutRef.current = window.setTimeout(() => {
+      void poll();
     }, 800);
-  }, [refetchFiles, stopPolling]);
+  }, [queryClient, refetchFiles, showErrorMessage, stopPolling]);
 
   // Resume polling for variants that were already processing on page load.
   useEffect(() => {
+    if (sourceObjectNames.length === 0) return;
+
     const hasPendingFiles = uploadedFiles.some(
       (file: UploadFileResponse) =>
         isDerivedAsset(file) &&
@@ -202,14 +231,15 @@ export default function Gallery({
     if (hasPendingFiles) {
       startPolling();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadedFiles]);
+  }, [sourceObjectNames.length, startPolling, uploadedFiles]);
 
   useEffect(
     () => () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
+      pollingRunIdRef.current += 1;
+      pollingActiveRef.current = false;
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+        pollingTimeoutRef.current = null;
       }
     },
     [],
@@ -254,7 +284,19 @@ export default function Gallery({
 
     setDeletingAssetIds((ids) => [...ids, file.id]);
     try {
-      await fileService.deleteAsset(file.id);
+      const response = await fileService.deleteAsset(file.id);
+      const remainingAssets = Math.max(
+        0,
+        totalAssets - response.data.deletedCount,
+      );
+      if (offset > 0 && offset >= remainingAssets) {
+        setOffset(
+          Math.max(
+            0,
+            Math.floor((remainingAssets - 1) / PAGE_SIZE) * PAGE_SIZE,
+          ),
+        );
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["getfiles"] }),
         queryClient.invalidateQueries({ queryKey: ["adminStats"] }),
@@ -294,14 +336,17 @@ export default function Gallery({
       <div className="mb-6">
         <input
           type="text"
-          placeholder="Search files by name..."
+          placeholder="Search files by tags..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setOffset(0);
+          }}
           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
-      {filteredFiles.length === 0 && pendingUploads.length === 0 ? (
+      {uploadedFiles.length === 0 && pendingUploads.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-slate-500">
             {searchQuery
@@ -368,7 +413,7 @@ export default function Gallery({
               </div>
             </div>
           ))}
-          {filteredFiles.map((file: UploadFileResponse) => (
+          {uploadedFiles.map((file: UploadFileResponse) => (
             <div
               key={file.id}
               className="group block bg-white border rounded-xl overflow-hidden shadow-sm transition hover:shadow-lg"
@@ -501,6 +546,12 @@ export default function Gallery({
           ))}
         </div>
       )}
+      <GalleryPagination
+        offset={offset}
+        pageSize={PAGE_SIZE}
+        total={totalAssets}
+        onPageChange={setOffset}
+      />
     </div>
   );
 }

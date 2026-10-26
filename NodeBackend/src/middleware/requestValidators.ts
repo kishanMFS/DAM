@@ -1,4 +1,4 @@
-import { body, param } from 'express-validator';
+import { body, param, query } from 'express-validator';
 
 export const validateLogin = [
   body('email')
@@ -75,4 +75,42 @@ export const validateAssetFiles = [
 
 export const validateFileId = [
   param('fileId').isUUID().withMessage('File ID must be a valid UUID'),
+];
+
+export const validateAssetList = [
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be an integer between 1 and 100')
+    .bail()
+    .toInt(),
+  query('offset')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Offset must be a non-negative integer')
+    .bail()
+    .toInt(),
+  query('search')
+    .optional()
+    .isString()
+    .withMessage('Search must be a string')
+    .bail()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('Search must be 200 characters or fewer'),
+  query('sourceObjectNames')
+    .optional()
+    .isJSON()
+    .withMessage('Source object names must be a JSON array')
+    .bail()
+    .custom((value: string) => {
+      const sourceObjectNames: unknown = JSON.parse(value);
+      return (
+        Array.isArray(sourceObjectNames) &&
+        sourceObjectNames.every(
+          (name) => typeof name === 'string' && name.length > 0 && name.length <= 1024,
+        )
+      );
+    })
+    .withMessage('Source object names must contain valid object keys'),
 ];

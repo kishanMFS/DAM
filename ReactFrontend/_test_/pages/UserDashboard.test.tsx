@@ -99,6 +99,53 @@ describe("UserDashboard test cases", () => {
     // expect(screen.getByText(/no uploaded files yet/i)).toBeTruthy();
   });
 
+  test("requests fixed-size pages and sends tag search through the assets API", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+    fetchMock.mockResolvedValue(
+      createFetchResponse({
+        success: true,
+        data: [],
+        pagination: { total: 20, limit: 8, offset: 0 },
+      }),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ErrorContextProvider>
+          <Gallery />
+        </ErrorContextProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(/\/assets\?limit=8&offset=0/),
+        expect.anything(),
+      ),
+    );
+    expect(await screen.findByText("Showing 1-8 of 20")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(/\/assets\?limit=8&offset=8/),
+        expect.anything(),
+      ),
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("Search files by tags..."), {
+      target: { value: "project tag" },
+    });
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(/\/assets\?limit=8&offset=0&search=project\+tag/),
+        expect.anything(),
+      ),
+    );
+  });
+
   test("selects a file and shows selected files + upload button", async () => {
     const { container } = renderDashboard();
 
@@ -236,7 +283,7 @@ describe("UserDashboard test cases", () => {
     });
 
     // seed the query cache used by Gallery so it renders deterministically
-    queryClient.setQueryData(["getfiles"], {
+    queryClient.setQueryData(["getfiles", 0, ""], {
       data: [
         {
           id: "2",
@@ -300,7 +347,7 @@ describe("UserDashboard test cases", () => {
     fetchMock.mockResolvedValue(
       createFetchResponse({ success: true, data: [source, ...variants] }),
     );
-    queryClient.setQueryData(["getfiles"], { data: [source] });
+    queryClient.setQueryData(["getfiles", 0, ""], { data: [source] });
     const onPollingStopped = jest.fn();
 
     render(
@@ -319,6 +366,12 @@ describe("UserDashboard test cases", () => {
     expect(screen.getByText("video - 480.mp4")).toBeInTheDocument();
     expect(screen.getByText("video - 720.mp4")).toBeInTheDocument();
     await waitFor(() => expect(onPollingStopped).toHaveBeenCalledTimes(1));
+
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    const processingRequests = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes("sourceObjectNames="),
+    );
+    expect(processingRequests).toHaveLength(1);
   });
 
   test.each([
@@ -331,7 +384,7 @@ describe("UserDashboard test cases", () => {
         defaultOptions: { queries: { retry: false } },
       });
 
-      queryClient.setQueryData(["getfiles"], {
+      queryClient.setQueryData(["getfiles", 0, ""], {
         data: [
           {
             id: "3",
@@ -364,7 +417,7 @@ describe("UserDashboard test cases", () => {
       defaultOptions: { queries: { retry: false } },
     });
 
-    queryClient.setQueryData(["getfiles"], { data: [] });
+    queryClient.setQueryData(["getfiles", 0, ""], { data: [] });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -407,7 +460,7 @@ describe("UserDashboard test cases", () => {
       file_size: 12.34,
       parentid: null,
     };
-    queryClient.setQueryData(["getfiles"], { data: [file] });
+    queryClient.setQueryData(["getfiles", 0, ""], { data: [file] });
     const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
     fetchMock.mockImplementation((_input, init) =>
       Promise.resolve(

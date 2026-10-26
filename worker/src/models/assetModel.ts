@@ -108,7 +108,7 @@ export async function insertAssetTags(
 }
 
 export async function updateAssetStatus(assetId: string, status: string) {
-  db.none(
+  return db.none(
     `
         UPDATE assets
         SET status = $2,

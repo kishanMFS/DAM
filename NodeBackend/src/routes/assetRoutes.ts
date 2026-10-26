@@ -12,6 +12,7 @@ import authMiddleware, { requireAdmin } from '../middleware/authMiddleware.js';
 import { validateRequest } from '../middleware/requestValidation.js';
 import {
   validateAssetFiles,
+  validateAssetList,
   validateFileId,
   validatePresignedFiles,
 } from '../middleware/requestValidators.js';
@@ -19,7 +20,7 @@ import {
 const router: Router = express.Router();
 
 router.post('/', authMiddleware, validateAssetFiles, validateRequest, uploadAssetDetails);
-router.get('/', authMiddleware, getAssets);
+router.get('/', authMiddleware, validateAssetList, validateRequest, getAssets);
 // router.get('/:id', authMiddleware, getAsset);
 // router.get('/search', authMiddleware, searchAsset);
 router.post(

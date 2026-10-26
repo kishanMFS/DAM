@@ -8,12 +8,24 @@ const isProd = env.isProd;
 
 export const getAssets = async (req: Request, res: Response): Promise<void> => {
   try {
+    const limit = req.query.limit === undefined ? 8 : Number(req.query.limit);
+    const offset = req.query.offset === undefined ? 0 : Number(req.query.offset);
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const sourceObjectNames =
+      typeof req.query.sourceObjectNames === 'string'
+        ? (JSON.parse(req.query.sourceObjectNames) as string[])
+        : undefined;
     let id: string = '';
     if (req.user && req.user.role != 'ADMIN') {
       id = String(req.user.id);
     }
 
-    const getAssetsResponse = await assetService.getAssetsService(id);
+    const getAssetsResponse = await assetService.getAssetsService(id, {
+      limit,
+      offset,
+      search,
+      sourceObjectNames,
+    });
     if (!getAssetsResponse.success) {
       res.status(401).json(getAssetsResponse);
       return;

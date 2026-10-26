@@ -3,23 +3,82 @@ import type { Asset, AssetFile } from '@dam/shared-types';
 // import { randomUUID } from 'crypto';
 // import { UUID } from 'crypto';
 
-export const getAssets = async (userid: string) => {
+export const getAssets = async (
+  userid: string,
+  {
+    limit,
+    offset,
+    search,
+    sourceObjectNames,
+  }: {
+    limit: number;
+    offset: number;
+    search?: string;
+    sourceObjectNames?: string[];
+  },
+) => {
   const result = {
     success: false,
     Assets: [] as Asset[],
     message: '',
+    total: 0,
   };
+  const filterParams = [userid || null, search || null, sourceObjectNames ?? null];
+  const whereClause = `
+    WHERE ($1::text IS NULL OR a.uploaded_by = $1)
+      AND (
+        $2::text IS NULL
+        OR EXISTS (
+          SELECT  1
+          FROM    assettags search_tags
+          WHERE   search_tags.assetid = a.id
+                  AND POSITION(LOWER($2) IN LOWER(search_tags.tags)) > 0
+        )
+      )
+      AND (
+        $3::text[] IS NULL
+        OR a.storage_key = ANY($3::text[])
+        OR a.parentid IN (
+          SELECT source.id
+          FROM assets source
+          WHERE source.storage_key = ANY($3::text[])
+        )
+      )
+  `;
+  const total = await db.one<{ total: string }>(
+    `
+      SELECT  COUNT(DISTINCT a.id) AS total
+      FROM    assets a
+      ${whereClause}
+    `,
+    filterParams,
+  );
+  result.total = Number(total.total);
+
   const assets = await db.manyOrNone<Asset>(
     `
-       SELECT a.*,
-              at.tags::jsonb AS tags
-      FROM    assets a
-              LEFT JOIN assettags at
-                ON at.assetid = a.id
-      WHERE   ($1::text IS NULL OR a.uploaded_by = $1)
-              ORDER BY a.id DESC
+      WITH matching_assets AS (
+        SELECT DISTINCT ON (a.id)
+               a.*,
+               at.tags::jsonb AS tags
+        FROM assets a
+        LEFT JOIN LATERAL (
+          SELECT tags
+          FROM assettags
+          WHERE assetid = a.id
+          ORDER BY created_at DESC
+          LIMIT 1
+        ) at ON TRUE
+        ${whereClause}
+        ORDER BY a.id, a.created_at DESC
+      )
+      SELECT *
+      FROM matching_assets
+      ORDER BY created_at DESC, id DESC
+      LIMIT $4::integer
+      OFFSET $5::integer
     `,
-    [userid || null],
+    [...filterParams, sourceObjectNames ? null : limit, sourceObjectNames ? null : offset],
   );
   if (assets) {
     result.success = true;
