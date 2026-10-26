@@ -6,11 +6,19 @@ const dbURL = env.DB_URL || '';
 const pgp = pgPromise();
 const db = pgp({
   connectionString: dbURL,
+  max: 10,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
+  keepAlive: true,
 });
 
 db.$pool.on('error', (error: Error) => {
   console.error('Unexpected PostgreSQL pool error:', error);
 });
+
+export const closeDatabase = async (): Promise<void> => {
+  await db.$pool.end();
+};
 
 async function testConnection() {
   try {

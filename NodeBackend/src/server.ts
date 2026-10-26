@@ -7,6 +7,7 @@ import cookies from 'cookie-parser';
 import helmet from 'helmet';
 import { initializeMinio } from './utils/minio.js';
 import { closeProducer } from './utils/producer.js';
+import { closeDatabase } from './utils/db.js';
 
 // initialize minio bucket
 initializeMinio();
@@ -57,17 +58,17 @@ httpServer.listen(PORT, () => {
 const shutdown = (signal: NodeJS.Signals) => {
   console.log(`Received ${signal}, shutting down HTTP server`);
   httpServer.close((error) => {
-    void closeProducer()
+    void Promise.all([closeProducer(), closeDatabase()])
       .then(() => {
         if (error) {
           console.error('HTTP server shutdown failed', error);
           process.exitCode = 1;
           return;
         }
-        console.log('HTTP server and RabbitMQ producer shut down');
+        console.log('HTTP server, RabbitMQ producer, and PostgreSQL pool shut down');
       })
-      .catch((producerError: unknown) => {
-        console.error('RabbitMQ producer shutdown failed', producerError);
+      .catch((shutdownError: unknown) => {
+        console.error('Application shutdown failed', shutdownError);
         process.exitCode = 1;
       });
   });
