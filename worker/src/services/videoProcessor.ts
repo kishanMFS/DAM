@@ -136,54 +136,42 @@ function thumbnail(input: string, output: string) {
 }
 
 export async function processVideo(task: MediaTask, file: string) {
+  const sourceProbe = await probeVideo(file);
+  const sourceVideo = (sourceProbe.streams as VideoStream[]).find(
+    (stream) => stream.codec_type === "video",
+  );
+  const sourceHeight = sourceVideo?.height ?? 0;
+  await assetModel.insertAssetTags(task.fileid, {
+    filename: task.original_name,
+    mimeType: task.fileType,
+    fileType: sourceVideo?.codec_name || "video",
+    dimensions: {
+      width: sourceVideo?.width,
+      height: sourceVideo?.height,
+    },
+    durationSeconds:
+      Number(sourceVideo?.duration || sourceProbe.format?.duration) ||
+      undefined,
+  });
+
   // Create output directories if they don't exist
-  const output240Dir = path.resolve("temp/videos/240");
-  const output480Dir = path.resolve("temp/videos/480");
-  const output720Dir = path.resolve("temp/videos/720");
-
-  fs.mkdirSync(output240Dir, { recursive: true });
-  fs.mkdirSync(output480Dir, { recursive: true });
-  fs.mkdirSync(output720Dir, { recursive: true });
-
   const baseName = path.parse(task.original_name).name;
 
-  const p240FileName = `${baseName} - 240.mp4`;
-  const p480FileName = `${baseName} - 480.mp4`;
-  const p720FileName = `${baseName} - 720.mp4`;
-
-  // Local output paths
-  const p240 = path.join(output240Dir, p240FileName);
-  const p480 = path.join(output480Dir, p480FileName);
-  const p720 = path.join(output720Dir, p720FileName);
-
-  // Object names in MinIO
-  // const objectBaseName = path.basename(task.objectName);
-
-  const p240Object = `videos/240/${p240FileName}`;
-  const p480Object = `videos/480/${p480FileName}`;
-  const p720Object = `videos/720/${p720FileName}`;
-
   // Convert videos in parallel
-  const conversions = [
-    {
-      outputPath: p240,
-      height: 240,
-      fileName: p240FileName,
-      objectName: p240Object,
-    },
-    {
-      outputPath: p480,
-      height: 480,
-      fileName: p480FileName,
-      objectName: p480Object,
-    },
-    {
-      outputPath: p720,
-      height: 720,
-      fileName: p720FileName,
-      objectName: p720Object,
-    },
-  ];
+  const heights =
+    sourceHeight >= 1080 ? [240, 480, 720, 1080] : [240, 480, 720];
+  const conversions = heights.map((height) => {
+    const outputDir = path.resolve(`temp/videos/${height}`);
+    fs.mkdirSync(outputDir, { recursive: true });
+    const fileName = `${baseName} - ${height}.mp4`;
+
+    return {
+      outputPath: path.join(outputDir, fileName),
+      height,
+      fileName,
+      objectName: `videos/${height}/${fileName}`,
+    };
+  });
 
   const conversionAssetIds = await Promise.all(
     conversions.map(({ outputPath, height, fileName, objectName }) =>
@@ -192,11 +180,11 @@ export async function processVideo(task: MediaTask, file: string) {
   );
 
   // Upload converted files in parallel
-  await Promise.all([
-    minio.fPutObject(task.bucket, p240Object, p240),
-    minio.fPutObject(task.bucket, p480Object, p480),
-    minio.fPutObject(task.bucket, p720Object, p720),
-  ]);
+  await Promise.all(
+    conversions.map(({ outputPath, objectName }) =>
+      minio.fPutObject(task.bucket, objectName, outputPath),
+    ),
+  );
 
   const conversionAssets = await Promise.all(
     conversions.map(async ({ objectName }, index) => ({

@@ -1,6 +1,7 @@
 // const winston = require('winston');
 import env from '@/config/env.js';
 import { createLogger, format, transports } from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
 const isProd = env.isProd;
 const { combine, timestamp, label, printf } = format;
@@ -19,9 +20,12 @@ const logger = createLogger({
     myFormat,
   ),
   transports: [
-    new transports.File({
-      filename: 'error.log',
+    new DailyRotateFile({
+      dirname: 'logs',
+      filename: 'error-%DATE%.log',
+      datePattern: 'YYYY-MM-DD',
       level: 'error',
+      zippedArchive: false,
       format: format.json(),
     }),
     new transports.Http({

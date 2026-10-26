@@ -164,8 +164,18 @@ export default function Gallery({
           const variants = derivedFiles.filter(
             (file) => (file.parentId ?? file.parentid) === source.id,
           );
+          const sourceDimensions = source.tags?.dimensions;
+          const sourceHeight =
+            sourceDimensions &&
+            typeof sourceDimensions === "object" &&
+            "height" in sourceDimensions &&
+            typeof sourceDimensions.height === "number"
+              ? sourceDimensions.height
+              : 0;
           const expectedVariants = source.mime_type?.startsWith("video/")
-            ? 3
+            ? sourceHeight >= 1080
+              ? 4
+              : 3
             : 1;
 
           return (
