@@ -71,8 +71,7 @@ function convert(
       .videoCodec("libx264")
       .size(`?x${height}`)
       .output(output)
-      .on("start", (cmd) => {
-        console.log("Started:", cmd);
+      .on("start", () => {
         void assetModel
           .createAsset(task, originalName, storage_key)
           .then(async (createAssetResponse) => {
@@ -85,14 +84,19 @@ function convert(
           .catch(fail);
       })
       .on("progress", (progress) => {
-        console.log(`Progress: ${progress.percent?.toFixed(2)}%`);
+        const progressValue =
+          typeof progress.percent === "number" &&
+          Number.isFinite(progress.percent)
+            ? progress.percent
+            : 0;
+        console.log(`Progress: ${progressValue.toFixed(2)}%`);
 
         const currentAssetId = assetid;
         if (currentAssetId && !settled) {
           void assetModel
             .updateAssetProgress(
               currentAssetId,
-              progress.percent || 0,
+              progressValue || 0,
               "processing",
             )
             .catch(fail);
@@ -139,12 +143,10 @@ function convert(
 
           if (settled) return;
           settled = true;
-          console.log("Video conversion completed.");
           resolve(assetid);
         })().catch(fail);
       })
       .on("error", (err) => {
-        console.log(err);
         fail(err);
       })
       .run();

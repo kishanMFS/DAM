@@ -119,25 +119,6 @@ export async function updateAssetStatus(assetId: string, status: string) {
   );
 }
 
-export async function getAsset(assetId: string) {
-  return db.oneOrNone(
-    `
-      SELECT
-        asset_id,
-        status,
-        progress,
-        thumbnail_path,
-        video_240,
-        video_480,
-        video_720,
-        error_message
-      FROM  tbl_assets
-      WHERE asset_id = $1
-      `,
-    [assetId],
-  );
-}
-
 export const getAssets = async (userid: string) => {
   const result = {
     success: false,
