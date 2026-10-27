@@ -1,37 +1,24 @@
 import { useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import type { UploadFile } from "../types/fileTypes";
+import type { ActiveUploadProgress, UploadFile } from "../types/fileTypes";
 import fileService from "../services/fileService";
 
 import useErrorContext from "../hooks/useError";
-// import type { UUID } from "crypto";
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
 type UploadSectionProps = {
-  onUploadComplete: () => void;
+  onUploadComplete: (objectNames: string[]) => void;
+  onProgress: (upload: ActiveUploadProgress) => void;
 };
 
 export default function UploadSection({
   onUploadComplete,
+  onProgress,
 }: UploadSectionProps) {
   const [files, setFiles] = useState<UploadFile[]>([]);
   const [dragging, setDragging] = useState(false);
-  const [currentUploadId, setCurrentUploadId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const uploadFileMutation = useMutation({
-    mutationFn: async ({
-      presignedUrl,
-      file,
-      contentType,
-    }: {
-      presignedUrl: string;
-      file: File;
-      contentType: string;
-    }) => fileService.uploadFileToPresignedUrl(presignedUrl, file, contentType),
-  });
-  const isUploading = uploadFileMutation.isPending;
 
   const { showErrorMessage } = useErrorContext();
 
@@ -80,6 +67,10 @@ export default function UploadSection({
   };
 
   const handleUpload = async () => {
+    if (isUploading || files.length === 0) return;
+
+    setIsUploading(true);
+
     try {
       const presignedUrls = await fileService.getPresignedUrls(
         files.map((item) => ({
@@ -88,30 +79,58 @@ export default function UploadSection({
         })),
       );
 
+      if (presignedUrls.data.length !== files.length) {
+        throw new Error("Could not create an upload URL for every file");
+      }
+
       await Promise.all(
         files.map((item, index) => {
           const presigned = presignedUrls.data[index];
 
-          return uploadFileMutation.mutateAsync({
-            presignedUrl: presigned.presignedUrl,
-            file: item.file,
-            contentType: item.type,
-          });
+          return fileService
+            .uploadFileToPresignedUrl(
+              presigned.presignedUrl,
+              item.file,
+              item.type,
+              (uploadProgress) => {
+                onProgress({
+                  id: item.id,
+                  objectName: presigned.objectName,
+                  originalName: item.file.name,
+                  preview: item.preview,
+                  mimeType: item.type,
+                  size: item.size,
+                  progress: uploadProgress,
+                  uploaded: false,
+                });
+              },
+            )
+            .then(() => {
+              onProgress({
+                id: item.id,
+                objectName: presigned.objectName,
+                originalName: item.file.name,
+                preview: item.preview,
+                mimeType: item.type,
+                size: item.size,
+                progress: 100,
+                uploaded: true,
+              });
+            });
         }),
       );
 
       // build metadata to store in node
-      const metadata = presignedUrls.data.map(
-        (p: { objectName: string }, idx: number) => ({
-          objectName: p.objectName,
-          originalName: files[idx].file.name,
-          fileType: files[idx].file.type,
-          size: files[idx].file.size / 1024 / 1024,
-        }),
-      );
+      const metadata = files.map((item, index) => ({
+        objectName: presignedUrls.data[index].objectName,
+        originalName: item.file.name,
+        fileType: item.file.type,
+        size: item.file.size / 1024 / 1024,
+      }));
       await fileService.storeFilesMetadata(metadata);
-      //   startPolling();
-      onUploadComplete();
+      files.forEach((item) => URL.revokeObjectURL(item.preview));
+      setFiles([]);
+      onUploadComplete(metadata.map((file) => file.objectName));
     } catch (error) {
       const msg =
         error && typeof error === "object" && "message" in error
@@ -119,9 +138,7 @@ export default function UploadSection({
           : "Upload failed";
       showErrorMessage(msg);
     } finally {
-      setCurrentUploadId(null);
-      setFiles([]);
-      onUploadComplete();
+      setIsUploading(false);
     }
   };
 
@@ -144,9 +161,11 @@ export default function UploadSection({
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
-          processFiles(e.dataTransfer.files);
+          if (!isUploading) processFiles(e.dataTransfer.files);
         }}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+          if (!isUploading) inputRef.current?.click();
+        }}
       >
         <input
           ref={inputRef}
@@ -154,6 +173,7 @@ export default function UploadSection({
           multiple
           accept="image/*,video/*"
           hidden
+          disabled={isUploading}
           onChange={(e) => processFiles(e.target.files)}
         />
 
@@ -202,14 +222,6 @@ export default function UploadSection({
                     </p>
 
                     <p className="text-sm text-slate-500">{item.type}</p>
-
-                    {currentUploadId === item.id && isUploading && (
-                      <div className="mt-2">
-                        <div className="w-full h-2 bg-slate-200 rounded">
-                          <div className="bg-blue-500 h-2 rounded animate-pulse" />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}

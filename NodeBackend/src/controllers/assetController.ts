@@ -8,12 +8,24 @@ const isProd = env.isProd;
 
 export const getAssets = async (req: Request, res: Response): Promise<void> => {
   try {
+    const limit = req.query.limit === undefined ? 8 : Number(req.query.limit);
+    const offset = req.query.offset === undefined ? 0 : Number(req.query.offset);
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const sourceObjectNames =
+      typeof req.query.sourceObjectNames === 'string'
+        ? (JSON.parse(req.query.sourceObjectNames) as string[])
+        : undefined;
     let id: string = '';
     if (req.user && req.user.role != 'ADMIN') {
       id = String(req.user.id);
     }
 
-    const getAssetsResponse = await assetService.getAssetsService(id);
+    const getAssetsResponse = await assetService.getAssetsService(id, {
+      limit,
+      offset,
+      search,
+      sourceObjectNames,
+    });
     if (!getAssetsResponse.success) {
       res.status(401).json(getAssetsResponse);
       return;
@@ -114,6 +126,45 @@ export const updateDownloadCount = async (req: Request, res: Response): Promise<
       errorMessage = (error as Error).message;
     }
     res.status(500).json({ message: 'Unable to update download count', errorMessage });
+  }
+};
+
+export const deleteAsset = async (req: Request, res: Response): Promise<void> => {
+  const fileId = req.params.fileId;
+  if (typeof fileId !== 'string') {
+    res.status(400).json({ success: false, message: 'Invalid fileId' });
+    return;
+  }
+
+  try {
+    const deletedCount = await assetService.deleteAssetService(fileId);
+
+    if (deletedCount === 0) {
+      res.status(404).json({
+        success: false,
+        message: 'Asset not found',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Asset and generated variants deleted successfully',
+      data: { deletedCount },
+    });
+  } catch (error) {
+    logger.error('Error deleting asset', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      fileId,
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Unable to delete asset',
+      ...(!isProd && {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      }),
+    });
   }
 };
 

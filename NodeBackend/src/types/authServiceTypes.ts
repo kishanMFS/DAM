@@ -7,8 +7,8 @@ interface User {
 }
 
 interface loginBody {
-  emailId?: string;
-  password?: string;
+  email: string;
+  password: string;
 }
 interface JwtPayload {
   id: string;

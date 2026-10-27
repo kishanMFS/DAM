@@ -6,6 +6,8 @@ import errorHandler from './middleware/errorHandler.js';
 import cookies from 'cookie-parser';
 import helmet from 'helmet';
 import { initializeMinio } from './utils/minio.js';
+import { closeProducer } from './utils/producer.js';
+import { closeDatabase } from './utils/db.js';
 
 // initialize minio bucket
 initializeMinio();
@@ -52,3 +54,25 @@ app.use(globalErrorHandler);
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+const shutdown = (signal: NodeJS.Signals) => {
+  console.log(`Received ${signal}, shutting down HTTP server`);
+  httpServer.close((error) => {
+    void Promise.all([closeProducer(), closeDatabase()])
+      .then(() => {
+        if (error) {
+          console.error('HTTP server shutdown failed', error);
+          process.exitCode = 1;
+          return;
+        }
+        console.log('HTTP server, RabbitMQ producer, and PostgreSQL pool shut down');
+      })
+      .catch((shutdownError: unknown) => {
+        console.error('Application shutdown failed', shutdownError);
+        process.exitCode = 1;
+      });
+  });
+};
+
+process.once('SIGINT', shutdown);
+process.once('SIGTERM', shutdown);

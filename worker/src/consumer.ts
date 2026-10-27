@@ -8,6 +8,23 @@ import { processImage } from "./services/imageProcessor.js";
 import type { MediaTask } from "@dam/shared-types";
 
 const rabbitMQhost = process.env.RABBITMQ_URL || "";
+const transientDatabaseErrorCodes = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "57P01",
+  "57P02",
+  "57P03",
+]);
+
+const isTransientDatabaseError = (error: unknown): boolean =>
+  Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    transientDatabaseErrorCodes.has(error.code),
+  );
 
 const startWorker = async (): Promise<void> => {
   let connection: Awaited<ReturnType<typeof amqp.connect>> | null = null;
@@ -60,26 +77,76 @@ const startWorker = async (): Promise<void> => {
       queueName,
       (msg: ConsumeMessage | null) => {
         if (msg !== null) {
-          const task: MediaTask = JSON.parse(
-            msg.content.toString(),
-          ) as MediaTask;
+          let task: MediaTask;
+          try {
+            task = JSON.parse(msg.content.toString()) as MediaTask;
+          } catch (error) {
+            logger.error("Worker received an invalid task message", {
+              message: error instanceof Error ? error.message : String(error),
+            });
+            channel.nack(msg, false, false);
+            return;
+          }
 
           // Simulate processing/business logic
-          setTimeout(async () => {
-            console.log(task);
-            const tempFile = path.join("temp", path.basename(task.objectName));
+          setTimeout(() => {
+            void (async () => {
+              console.log(task);
+              const tempFile = path.join(
+                "temp",
+                path.basename(task.objectName),
+              );
 
-            await minio.fGetObject(task.bucket, task.objectName, tempFile);
+              try {
+                await minio.fGetObject(task.bucket, task.objectName, tempFile);
 
-            if (task.fileType.startsWith("video")) {
-              await processVideo(task, tempFile);
-            } else if (task.fileType.startsWith("image")) {
-              await processImage(task, tempFile);
-            }
-            fs.unlinkSync(tempFile);
+                if (task.fileType.startsWith("video")) {
+                  await processVideo(task, tempFile);
+                } else if (task.fileType.startsWith("image")) {
+                  await processImage(task, tempFile);
+                }
+              } finally {
+                try {
+                  await fs.promises.unlink(tempFile);
+                } catch (error) {
+                  if (
+                    !(
+                      error instanceof Error &&
+                      "code" in error &&
+                      error.code === "ENOENT"
+                    )
+                  ) {
+                    throw error;
+                  }
+                }
+              }
 
-            // 4. Manual Acknowledgment
-            channel.ack(msg);
+              channel.ack(msg);
+            })().catch((error: unknown) => {
+              const requeue = isTransientDatabaseError(error);
+              logger.error("Worker task processing failed", {
+                requeued: requeue,
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                taskId: task.fileid,
+              });
+
+              const rejectMessage = () => {
+                try {
+                  channel.nack(msg, false, requeue);
+                } catch (nackError) {
+                  logger.error("Unable to reject failed worker task", {
+                    message:
+                      nackError instanceof Error
+                        ? nackError.message
+                        : String(nackError),
+                    taskId: task.fileid,
+                  });
+                }
+              };
+              if (requeue) setTimeout(rejectMessage, 5000);
+              else rejectMessage();
+            });
           }, 2000);
         }
       },

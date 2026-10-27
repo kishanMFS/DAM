@@ -65,6 +65,31 @@ export async function updateAsset(
   );
 }
 
+export async function updateThumbnailKey(
+  assetId: string,
+  thumbnailKey: string,
+) {
+  const result = await db.oneOrNone<{ id: string }>(
+    `
+      UPDATE assets
+      SET thumbnail_key = $2,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING id
+    `,
+    [assetId, thumbnailKey],
+  );
+  return result !== null;
+}
+
+export async function assetExists(assetId: string): Promise<boolean> {
+  const result = await db.oneOrNone<{ id: string }>(
+    "SELECT id FROM assets WHERE id = $1",
+    [assetId],
+  );
+  return result !== null;
+}
+
 export async function insertAssetTags(
   assetId: string,
   tags: Record<string, unknown>,
@@ -83,7 +108,7 @@ export async function insertAssetTags(
 }
 
 export async function updateAssetStatus(assetId: string, status: string) {
-  db.none(
+  return db.none(
     `
         UPDATE assets
         SET status = $2,

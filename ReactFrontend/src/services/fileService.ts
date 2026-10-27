@@ -1,21 +1,36 @@
 import { apiClient } from "./apiClient";
 
 export interface UploadFileResponse {
-  tags: object;
+  tags?: Record<string, unknown>;
   original_name: string;
   id: string;
-  originalName: string;
-  fileType: string;
-  size: string;
+  originalName?: string;
+  fileType?: string;
+  size?: string;
   downloadUrl: string;
-  parentId?: string;
+  parentid?: string | null;
+  parentId?: string | null;
+  storage_key?: string;
   status?: "pending" | "processing" | "complete" | "error";
   progress?: number;
+  file_size?: number | string;
+  mime_type?: string;
   data?: Array<{ tags?: Record<string, unknown> }>;
 }
 
 export interface FileListResponse {
   files: UploadFileResponse[];
+}
+
+export interface UploadFilesResponse {
+  success: boolean;
+  message: string;
+  data: UploadFileResponse[];
+  pagination?: {
+    total: number;
+    limit: number;
+    offset: number;
+  };
 }
 
 export interface PresignedUrlRequest {
@@ -26,7 +41,18 @@ export interface PresignedUrlRequest {
 export interface PresignedUrlResponse {
   objectName: string;
   presignedUrl: string;
-  data: object;
+}
+
+export interface PresignedUrlsResponse {
+  data: PresignedUrlResponse[];
+}
+
+export interface DeleteAssetResponse {
+  success: boolean;
+  message: string;
+  data: {
+    deletedCount: number;
+  };
 }
 
 const fileService = {
@@ -41,23 +67,23 @@ const fileService = {
     });
   },
 
-  getFilesFromWinio: () =>
-    apiClient<FileListResponse>({
-      url: "/api/assets",
+  getFilesFromWinio: (params?: {
+    limit?: number;
+    offset?: number;
+    search?: string;
+    sourceObjectNames?: string;
+  }) =>
+    apiClient<UploadFilesResponse>({
+      url: "/assets",
       method: "GET",
+      params,
     }),
 
   getPresignedUrls: async (files: PresignedUrlRequest[]) =>
-    apiClient<PresignedUrlResponse[]>({
+    apiClient<PresignedUrlsResponse>({
       url: "/assets/presigned-url",
       method: "POST",
       body: { files },
-    }),
-
-  getAdminStats: async () =>
-    apiClient({
-      url: "/assets/dashboard",
-      method: "GET",
     }),
 
   storeFilesMetadata: async (
@@ -65,7 +91,7 @@ const fileService = {
       objectName: string;
       originalName: string;
       fileType: string;
-      size: string;
+      size: number;
     }[],
   ) =>
     apiClient<UploadFileResponse[]>({
@@ -78,26 +104,47 @@ const fileService = {
     presignedUrl: string,
     file: File,
     contentType: string,
-  ) => {
-    const response = await fetch(presignedUrl, {
-      method: "PUT",
-      body: file,
-      headers: {
-        "Content-Type": contentType,
-      },
+    onProgress: (progress: number) => void,
+  ): Promise<void> => {
+    await new Promise<void>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("PUT", presignedUrl);
+      request.setRequestHeader("Content-Type", contentType);
+
+      request.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          onProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+
+      request.onload = () => {
+        if (request.status >= 200 && request.status < 300) {
+          onProgress(100);
+          resolve();
+          return;
+        }
+
+        reject(new Error("Presigned URL upload failed"));
+      };
+
+      request.onerror = () => {
+        reject(new Error("Presigned URL upload failed"));
+      };
+
+      request.send(file);
     });
-
-    if (!response.ok) {
-      throw new Error("Presigned URL upload failed");
-    }
-
-    return response;
   },
 
   updateDownloadCount: async (fileId: string) =>
     apiClient({
       url: `/assets/${fileId}/download-count`,
       method: "PATCH",
+    }),
+
+  deleteAsset: async (fileId: string) =>
+    apiClient<DeleteAssetResponse>({
+      url: `/assets/${fileId}`,
+      method: "DELETE",
     }),
 };
 

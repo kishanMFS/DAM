@@ -2,13 +2,11 @@ import type { Request, Response } from 'express';
 import * as authService from '@/services/authService.js';
 import type { loginBody } from '@/types/authServiceTypes.js';
 
-export const loginUser = async (req: Request<loginBody>, res: Response): Promise<void> => {
+export const loginUser = async (
+  req: Request<Record<string, string>, unknown, loginBody>,
+  res: Response,
+): Promise<void> => {
   const { email, password } = req.body;
-
-  if (email === undefined || password === undefined) {
-    res.status(400).json({ message: 'Email and password are required', success: false });
-    return;
-  }
   const loginUserResponse = await authService.loginUser(email, password);
   if (!loginUserResponse) {
     res.status(401).json({ message: 'Invalid credentials', success: false });
@@ -19,7 +17,7 @@ export const loginUser = async (req: Request<loginBody>, res: Response): Promise
   res.status(200).json(response);
 };
 
-export const logoutUser = (req: Request<loginBody>, res: Response): void => {
+export const logoutUser = (_req: Request, res: Response): void => {
   res.clearCookie('access_token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

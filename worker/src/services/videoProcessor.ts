@@ -12,7 +12,6 @@ import path from "path";
 import { minio } from "../utils/minio.js";
 import type { MediaTask } from "@dam/shared-types";
 import type { VideoStream } from "../types/videoTypes.js";
-import { randomUUID } from "crypto";
 
 ffmpeg.setFfmpegPath(ffmpegPath as unknown as string);
 ffmpeg.setFfprobePath(ffprobe.path);
@@ -36,77 +35,117 @@ function convert(
   task: MediaTask,
   originalName: string,
   storage_key: string,
-) {
-  let assetid = randomUUID();
-  return new Promise((resolve, reject) => {
+): Promise<string> {
+  let assetid: string | undefined;
+  let settled = false;
+
+  return new Promise<string>((resolve, reject) => {
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+
+      if (assetid) {
+        void assetModel
+          .updateAssetStatus(assetid, "error")
+          .catch((statusError) => {
+            logger.error("Unable to mark failed video variant", {
+              assetId: assetid,
+              message:
+                statusError instanceof Error
+                  ? statusError.message
+                  : String(statusError),
+            });
+          });
+      }
+
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
+      logger.error("Video conversion failed", {
+        message: normalizedError.message,
+        stack: normalizedError.stack,
+      });
+      reject(normalizedError);
+    };
+
     ffmpeg(input)
       .videoCodec("libx264")
       .size(`?x${height}`)
       .output(output)
-      .on("start", async (cmd) => {
+      .on("start", (cmd) => {
         console.log("Started:", cmd);
-        const createAssetResponse = await assetModel.createAsset(
-          task,
-          originalName,
-          storage_key,
-        );
-        assetid = createAssetResponse.id;
-        // console.log(assetid)
+        void assetModel
+          .createAsset(task, originalName, storage_key)
+          .then(async (createAssetResponse) => {
+            const createdAssetId = createAssetResponse.id;
+            assetid = createdAssetId;
+            if (settled) {
+              await assetModel.updateAssetStatus(createdAssetId, "error");
+            }
+          })
+          .catch(fail);
       })
-      .on("progress", async (progress) => {
+      .on("progress", (progress) => {
         console.log(`Progress: ${progress.percent?.toFixed(2)}%`);
 
-        await assetModel.updateAssetProgress(
-          assetid,
-          progress.percent! || 0,
-          "processing",
-        );
+        const currentAssetId = assetid;
+        if (currentAssetId && !settled) {
+          void assetModel
+            .updateAssetProgress(
+              currentAssetId,
+              progress.percent || 0,
+              "processing",
+            )
+            .catch(fail);
+        }
       })
-      .on("end", async () => {
-        const info = await stat(output);
-        const fileSize = info.size / 1024 / 1024;
-        const mimeType = mime.lookup(output) || "application/octet-stream";
-        const probe = await probeVideo(output);
-        const videoStream = (probe.streams as VideoStream[])?.find(
-          (s) => s.codec_type === "video",
-        );
+      .on("end", () => {
+        void (async () => {
+          if (settled) return;
+          if (!assetid) {
+            throw new Error("Video variant asset was not created");
+          }
 
-        const tags = {
-          filename: originalName,
-          mimeType,
-          fileType: videoStream?.codec_name || "video",
-          fileSizeMB: fileSize,
-          dimensions: {
-            width: videoStream?.width,
-            height: videoStream?.height,
-          },
-          durationSeconds:
-            Number(videoStream?.duration || probe.format?.duration) ||
-            undefined,
-          metadata: {
-            formatName: probe.format?.format_name,
-            bitRate: videoStream?.bit_rate
-              ? Number(videoStream.bit_rate)
-              : undefined,
-          },
-        };
+          const info = await stat(output);
+          const fileSize = info.size / 1024 / 1024;
+          const mimeType = mime.lookup(output) || "application/octet-stream";
+          const probe = await probeVideo(output);
+          const videoStream = (probe.streams as VideoStream[])?.find(
+            (s) => s.codec_type === "video",
+          );
 
-        await assetModel.updateAsset(assetid, fileSize, mimeType);
-        await assetModel.insertAssetTags(assetid, tags);
-        await assetModel.updateAssetStatus(assetid, "complete");
+          const tags = {
+            filename: originalName,
+            mimeType,
+            fileType: videoStream?.codec_name || "video",
+            fileSizeMB: fileSize,
+            dimensions: {
+              width: videoStream?.width,
+              height: videoStream?.height,
+            },
+            durationSeconds:
+              Number(videoStream?.duration || probe.format?.duration) ||
+              undefined,
+            metadata: {
+              formatName: probe.format?.format_name,
+              bitRate: videoStream?.bit_rate
+                ? Number(videoStream.bit_rate)
+                : undefined,
+            },
+          };
 
-        console.log("Video conversion completed.");
-        resolve("");
+          await assetModel.updateAsset(assetid, fileSize, mimeType);
+          await assetModel.insertAssetTags(assetid, tags);
+          await assetModel.updateAssetStatus(assetid, "complete");
+
+          if (settled) return;
+          settled = true;
+          console.log("Video conversion completed.");
+          resolve(assetid);
+        })().catch(fail);
       })
-      .on("error", async (err) => {
-        await assetModel.updateAssetStatus(assetid, "error");
+      .on("error", (err) => {
         console.log(err);
-        const errorMessage = "video parsing error";
-        logger.error(errorMessage, {
-          message: err instanceof Error ? err.message : String(err),
-          stack: err instanceof Error ? err.stack : undefined,
-        });
-        reject(0);
+        fail(err);
       })
       .run();
   });
@@ -136,75 +175,121 @@ function thumbnail(input: string, output: string) {
 }
 
 export async function processVideo(task: MediaTask, file: string) {
-  // Create output directories if they don't exist
-  const output240Dir = path.resolve("temp/videos/240");
-  const output480Dir = path.resolve("temp/videos/480");
-  const output720Dir = path.resolve("temp/videos/720");
+  const temporaryFiles: string[] = [];
+  let processingError: unknown;
 
-  fs.mkdirSync(output240Dir, { recursive: true });
-  fs.mkdirSync(output480Dir, { recursive: true });
-  fs.mkdirSync(output720Dir, { recursive: true });
+  try {
+    const sourceProbe = await probeVideo(file);
+    const sourceVideo = (sourceProbe.streams as VideoStream[]).find(
+      (stream) => stream.codec_type === "video",
+    );
+    const sourceHeight = sourceVideo?.height ?? 0;
+    await assetModel.insertAssetTags(task.fileid, {
+      filename: task.original_name,
+      mimeType: task.fileType,
+      fileType: sourceVideo?.codec_name || "video",
+      dimensions: {
+        width: sourceVideo?.width,
+        height: sourceVideo?.height,
+      },
+      durationSeconds:
+        Number(sourceVideo?.duration || sourceProbe.format?.duration) ||
+        undefined,
+    });
 
-  const baseName = path.parse(task.original_name).name;
+    const baseName = path.parse(task.original_name).name;
+    const heights =
+      sourceHeight >= 1080 ? [240, 480, 720, 1080] : [240, 480, 720];
+    const conversions = heights.map((height) => {
+      const outputDir = path.resolve(`temp/videos/${height}`);
+      fs.mkdirSync(outputDir, { recursive: true });
+      const fileName = `${baseName} - ${height}.mp4`;
+      const outputPath = path.join(outputDir, fileName);
+      temporaryFiles.push(outputPath);
 
-  const p240FileName = `${baseName} - 240.mp4`;
-  const p480FileName = `${baseName} - 480.mp4`;
-  const p720FileName = `${baseName} - 720.mp4`;
+      return {
+        outputPath,
+        height,
+        fileName,
+        objectName: `videos/${height}/${fileName}`,
+      };
+    });
 
-  // Local output paths
-  const p240 = path.join(output240Dir, p240FileName);
-  const p480 = path.join(output480Dir, p480FileName);
-  const p720 = path.join(output720Dir, p720FileName);
+    const conversionAssetIds = await Promise.all(
+      conversions.map(({ outputPath, height, fileName, objectName }) =>
+        convert(file, outputPath, height, task, fileName, objectName),
+      ),
+    );
 
-  // Object names in MinIO
-  // const objectBaseName = path.basename(task.objectName);
+    await Promise.all(
+      conversions.map(({ outputPath, objectName }) =>
+        minio.fPutObject(task.bucket, objectName, outputPath),
+      ),
+    );
 
-  const p240Object = `videos/240/${p240FileName}`;
-  const p480Object = `videos/480/${p480FileName}`;
-  const p720Object = `videos/720/${p720FileName}`;
+    const conversionAssets = await Promise.all(
+      conversions.map(async ({ objectName }, index) => ({
+        objectName,
+        exists: await assetModel.assetExists(conversionAssetIds[index]),
+      })),
+    );
+    await Promise.all(
+      conversionAssets
+        .filter((asset) => !asset.exists)
+        .map(({ objectName }) => minio.removeObject(task.bucket, objectName)),
+    );
 
-  // Convert videos in parallel
-  const conversions = [
-    {
-      outputPath: p240,
-      height: 240,
-      fileName: p240FileName,
-      objectName: p240Object,
-    },
-    {
-      outputPath: p480,
-      height: 480,
-      fileName: p480FileName,
-      objectName: p480Object,
-    },
-    {
-      outputPath: p720,
-      height: 720,
-      fileName: p720FileName,
-      objectName: p720Object,
-    },
-  ];
+    const thumbDir = path.resolve("temp/thumbnails");
+    fs.mkdirSync(thumbDir, { recursive: true });
 
-  await Promise.all(
-    conversions.map(({ outputPath, height, fileName, objectName }) =>
-      convert(file, outputPath, height, task, fileName, objectName),
-    ),
-  );
+    const thumbPath = path.join(thumbDir, `${baseName}.jpg`);
+    const thumbObject = `thumbnails/${baseName}.jpg`;
+    temporaryFiles.push(thumbPath);
 
-  // Upload converted files in parallel
-  await Promise.all([
-    minio.fPutObject(task.bucket, p240Object, p240),
-    minio.fPutObject(task.bucket, p480Object, p480),
-    minio.fPutObject(task.bucket, p720Object, p720),
-  ]);
+    await thumbnail(file, thumbPath);
 
-  // Create thumbnail
-  const thumbDir = path.resolve("temp/thumbnails");
-  fs.mkdirSync(thumbDir, { recursive: true });
+    await minio.fPutObject(task.bucket, thumbObject, thumbPath);
+    const thumbnailLinked = await assetModel.updateThumbnailKey(
+      task.fileid,
+      thumbObject,
+    );
+    if (!thumbnailLinked) {
+      await minio.removeObject(task.bucket, thumbObject);
+    }
+  } catch (error) {
+    processingError = error;
+    throw error;
+  } finally {
+    const cleanupErrors: unknown[] = [];
+    for (const temporaryFile of temporaryFiles) {
+      try {
+        await fs.promises.unlink(temporaryFile);
+      } catch (error) {
+        if (
+          !(
+            error instanceof Error &&
+            "code" in error &&
+            error.code === "ENOENT"
+          )
+        ) {
+          cleanupErrors.push(error);
+        }
+      }
+    }
 
-  const thumbPath = path.join(thumbDir, `${baseName}.jpg`);
-
-  await thumbnail(file, thumbPath);
-
-  await minio.fPutObject(task.bucket, `thumbnails/${baseName}.jpg`, thumbPath);
+    if (cleanupErrors.length > 0) {
+      logger.error("Video temporary-file cleanup failed", {
+        files: temporaryFiles,
+        errors: cleanupErrors.map((error) =>
+          error instanceof Error ? error.message : String(error),
+        ),
+      });
+      if (processingError === undefined) {
+        throw new AggregateError(
+          cleanupErrors,
+          "Failed to remove temporary video processing files",
+        );
+      }
+    }
+  }
 }

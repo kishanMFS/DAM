@@ -13,8 +13,20 @@ const resolvePresignedUrl = (presignedUrl: string): string => {
   return rewrittenUrl || presignedUrl;
 };
 
-export const getAssetsService = async (userid: string): Promise<ApiResponse<Asset[]>> => {
-  const result = await assetModel.getAssets(userid);
+export const getAssetsService = async (
+  userid: string,
+  options: {
+    limit: number;
+    offset: number;
+    search?: string;
+    sourceObjectNames?: string[];
+  },
+): Promise<
+  ApiResponse<Asset[]> & {
+    pagination: { total: number; limit: number; offset: number };
+  }
+> => {
+  const result = await assetModel.getAssets(userid, options);
   if (result.success) {
     const filesWithUrls = await Promise.all(
       result.Assets.map(async (asset) => ({
@@ -32,6 +44,11 @@ export const getAssetsService = async (userid: string): Promise<ApiResponse<Asse
     success: result.success,
     message: result.message,
     data: result.Assets,
+    pagination: {
+      total: result.total,
+      limit: options.limit,
+      offset: options.offset,
+    },
   };
 };
 
@@ -77,18 +94,20 @@ export const uploadAssetDetailsService = async (
 ): Promise<ApiResponse> => {
   const result = await assetModel.insertAssetDetails(files, userid);
 
-  // Send each uploaded file to RabbitMQ
-  files.forEach((file, index) => {
-    const insertedFile = result.data[index];
-    sendTask({
-      fileid: insertedFile.id,
-      original_name: insertedFile.original_name,
-      objectName: file.objectName,
-      bucket: BUCKET_NAME,
-      fileType: file.fileType,
-      userid,
-    });
-  });
+  // Wait for broker confirms so a failed publish is surfaced to the API caller.
+  await Promise.all(
+    files.map(async (file, index) => {
+      const insertedFile = result.data[index];
+      await sendTask({
+        fileid: insertedFile.id,
+        original_name: insertedFile.original_name,
+        objectName: file.objectName,
+        bucket: BUCKET_NAME,
+        fileType: file.fileType,
+        userid,
+      });
+    }),
+  );
 
   return result;
 };
@@ -120,4 +139,12 @@ export const updateDownloadCountService = async (fileId: string): Promise<ApiRes
     message: result.message,
     data: result.data,
   };
+};
+
+export const deleteAssetService = async (assetId: string): Promise<number> => {
+  const deletedAssets = await assetModel.deleteAssetTree(assetId, async (objectNames) => {
+    await Promise.all(objectNames.map((objectName) => minio.removeObject(BUCKET_NAME, objectName)));
+  });
+
+  return deletedAssets?.length ?? 0;
 };

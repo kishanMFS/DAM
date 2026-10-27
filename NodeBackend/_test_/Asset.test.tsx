@@ -1,10 +1,10 @@
-import * as assetService from '../src/services/assetService';
-import * as assetModel from '../src/models/assetModel';
-import { minio } from '../src/utils/minio';
-import sendTask from '../src/utils/producer';
-import type { Asset } from '../src/types/assetTypes';
-import db from '../src/utils/db';
+import * as assetService from '../src/services/assetService.js';
+import * as assetModel from '../src/models/assetModel.js';
+import sendTask from '../src/utils/producer.js';
+import type { Asset } from '../src/types/assetTypes.js';
+import db from '../src/utils/db.js';
 
+import { minio } from '../src/utils/minio.js';
 import { describe, test, expect, beforeEach, jest, afterEach } from '@jest/globals';
 
 jest.mock('@/utils/db');

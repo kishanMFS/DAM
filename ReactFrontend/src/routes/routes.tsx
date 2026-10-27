@@ -1,27 +1,22 @@
+import { Suspense } from "react";
 import { Navigate, createBrowserRouter, Outlet } from "react-router-dom";
 import { Provider } from "react-redux";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import Layout from "../components/Layout";
-import ProtectedRoute from "../components/ProtectedRoute";
 import ErrorBoundaryWrapper from "../components/ErrorBoundaryWrapper";
-
-import LoginPage from "../pages/Login";
-// import Dashboard from "../pages/Dashboard";
-
-import MissingComponent from "../pages/MissingComponent";
-import RenderError from "../pages/Error";
-
+import RouteErrorFallback from "../components/RouteErrorFallback";
 import { ErrorContextProvider } from "../context/ErrorContext";
+import {
+  AdminDashboard,
+  LoginPage,
+  MissingComponent,
+  ProtectedAppRoute,
+  RenderError,
+  RouteLoading,
+  UserDashboard,
+} from "./lazyRouteComponents";
 import store from "../store/authStore";
-// import { lazy } from "react";
 
-// import AdminLayout from "../pages/AdminLayout";
-// import UserLayout from "../pages/UserLayout";
-
-import AdminDashboard from "../pages/AdminDashboard";
-import UserDashboard from "../pages/UserDashboard";
-
-import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -37,7 +32,7 @@ const queryClient = new QueryClient({
 
 export interface routesType {
   path: string;
-  element: React.ReactNode;
+  element?: React.ReactNode;
   children?: routesType[];
 }
 
@@ -52,11 +47,7 @@ const routes: routesType[] = [
   },
   {
     path: "",
-    element: (
-      <ProtectedRoute>
-        <Layout />
-      </ProtectedRoute>
-    ),
+    element: <ProtectedAppRoute />,
     children: [
       {
         path: "admin",
@@ -66,7 +57,6 @@ const routes: routesType[] = [
             element: <AdminDashboard />,
           },
         ],
-        element: undefined,
       },
       {
         path: "user",
@@ -76,7 +66,6 @@ const routes: routesType[] = [
             element: <UserDashboard />,
           },
         ],
-        element: undefined,
       },
     ],
   },
@@ -90,11 +79,11 @@ const routes: routesType[] = [
   },
 ];
 
-const mapRoutes = (routes: routesType[]): routesType[] => {
-  return routes.map((route) => ({
+const mapRoutes = (routeList: routesType[]): routesType[] => {
+  return routeList.map((route) => ({
     path: route.path,
     element: route.element,
-    errorElement: <RenderError />,
+    errorElement: <RouteErrorFallback />,
     children: route.children ? mapRoutes(route.children) : undefined,
   }));
 };
@@ -107,13 +96,15 @@ const router = createBrowserRouter([
         <ErrorBoundaryWrapper>
           <QueryClientProvider client={queryClient}>
             <ErrorContextProvider>
-              <Outlet />
+              <Suspense fallback={<RouteLoading />}>
+                <Outlet />
+              </Suspense>
             </ErrorContextProvider>
           </QueryClientProvider>
         </ErrorBoundaryWrapper>
       </Provider>
     ),
-    errorElement: <RenderError />,
+    errorElement: <RouteErrorFallback />,
     children: mapRoutes(routes),
   },
 ]);
