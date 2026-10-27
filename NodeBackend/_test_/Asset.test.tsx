@@ -29,9 +29,13 @@ describe('assetService test cases', () => {
     ];
 
     mockedDb.manyOrNone.mockResolvedValue(assets as any);
+    mockedDb.one.mockResolvedValue({ total: '2' } as any);
     mockedMinio.presignedGetObject.mockResolvedValue('https://download/url' as any);
 
-    const res = await assetService.getAssetsService('userid-1');
+    const res = await assetService.getAssetsService('userid-1', {
+      limit: 8,
+      offset: 0,
+    });
 
     expect(res.success).toBe(true);
     expect(res.data).toBeDefined();
