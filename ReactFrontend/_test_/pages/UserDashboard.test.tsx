@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -242,11 +248,13 @@ describe("UserDashboard test cases", () => {
     await waitFor(() => {
       expect(uploadRequests).toHaveLength(1);
     });
-    uploadRequests[0].upload.onprogress?.({
-      lengthComputable: true,
-      loaded: 50,
-      total: 100,
-    } as ProgressEvent);
+    act(() => {
+      uploadRequests[0].upload.onprogress?.({
+        lengthComputable: true,
+        loaded: 50,
+        total: 100,
+      } as ProgressEvent);
+    });
     await waitFor(() => {
       expect(
         screen.getByRole("progressbar", { name: "Uploading test.png" }),
@@ -259,12 +267,15 @@ describe("UserDashboard test cases", () => {
       "PUT",
       "https://upload.example/test.png",
     );
-    uploadRequests[0].upload.onprogress?.({
-      lengthComputable: true,
-      loaded: 100,
-      total: 100,
-    } as ProgressEvent);
-    uploadRequests[0].onload?.();
+    await act(async () => {
+      uploadRequests[0].upload.onprogress?.({
+        lengthComputable: true,
+        loaded: 100,
+        total: 100,
+      } as ProgressEvent);
+      uploadRequests[0].onload?.();
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
