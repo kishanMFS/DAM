@@ -8,6 +8,8 @@
     "packages/shared-types"
   ],
   "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present -- --runInBand",
     "react": "npm run dev --workspace=./ReactFrontend",
     "node": "npm run start --workspace=./NodeBackend && npm run build --workspace=./NodeBackend",
     "worker": "npm run dev --workspace=./worker",
