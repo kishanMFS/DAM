@@ -42,10 +42,6 @@ const startWorker = async (): Promise<void> => {
       retries--;
       if (retries === 0) {
         const errorMessage = "Failed to connect to RabbitMQ after 5 retries";
-        console.error(
-          errorMessage,
-          error instanceof Error ? error.message : String(error),
-        );
         logger.error(errorMessage, {
           message: error instanceof Error ? error.message : String(error),
         });
@@ -91,7 +87,6 @@ const startWorker = async (): Promise<void> => {
           // Simulate processing/business logic
           setTimeout(() => {
             void (async () => {
-              console.log(task);
               const tempFile = path.join(
                 "temp",
                 path.basename(task.objectName),
@@ -156,10 +151,6 @@ const startWorker = async (): Promise<void> => {
     );
   } catch (error) {
     const errorMessage = "rabbitmq consumer error";
-    console.error(
-      errorMessage,
-      error instanceof Error ? error.message : String(error),
-    );
     logger.error(errorMessage, {
       message: error instanceof Error ? error.message : String(error),
     });
