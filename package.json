@@ -16,6 +16,8 @@
     "composedown": "docker compose down"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^17.7.0",
