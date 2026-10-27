@@ -1,29 +1,63 @@
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import * as authService from '../src/services/authService.js';
+import { findUserByEmail, getUserType } from '../src/models/authModel.js';
+import type { User, RoleType } from '../src/types/authServiceTypes.js';
 
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeAll, beforeEach, jest } from '@jest/globals';
+
+jest.mock('../src/models/authModel.js', () => ({
+  findUserByEmail: jest.fn(),
+  getUserType: jest.fn(),
+}));
 
 describe('authService test cases', () => {
   const password = 'Password123!';
+  const mockedFindUserByEmail = jest.mocked(findUserByEmail);
+  const mockedGetUserType = jest.mocked(getUserType);
+  let passwordHash: string;
+
+  const user: User = {
+    id: 'user-id',
+    email: 'john@mail.com',
+    password_hash: '',
+    role_id: 1,
+    name: '',
+  };
+  const userType: RoleType = { id: 1, name: 'ADMIN' };
+
+  beforeAll(async () => {
+    passwordHash = await bcrypt.hash(password, 4);
+    user.password_hash = passwordHash;
+  });
 
   beforeEach(() => {
-    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   test('loginUser returns null when user is not found', async () => {
+    mockedFindUserByEmail.mockResolvedValue(null);
+
     const result = await authService.loginUser('missing@example.com', password);
 
     expect(result).toBeNull();
+    expect(mockedGetUserType).not.toHaveBeenCalled();
   });
 
   test('loginUser returns null when password is invalid', async () => {
+    mockedFindUserByEmail.mockResolvedValue(user);
+    mockedGetUserType.mockResolvedValue(userType);
+
     const result = await authService.loginUser('john@mail.com', 'wrong-password');
 
     expect(result).toBeNull();
   });
 
   test('loginUser authenticates valid user and returns a token', async () => {
-    const result = await authService.loginUser('john@mail.com', 'changeme');
+    mockedFindUserByEmail.mockResolvedValue(user);
+    mockedGetUserType.mockResolvedValue(userType);
+
+    const result = await authService.loginUser('john@mail.com', password);
 
     expect(result).not.toBeNull();
     expect(result?.access_token).toBeTruthy();
@@ -47,7 +81,10 @@ describe('authService test cases', () => {
   });
 
   test('verifyToken validates a token issued for valid email', async () => {
-    const loginResult = await authService.loginUser('john@mail.com', 'changeme');
+    mockedFindUserByEmail.mockResolvedValue(user);
+    mockedGetUserType.mockResolvedValue(userType);
+
+    const loginResult = await authService.loginUser('john@mail.com', password);
 
     expect(loginResult).not.toBeNull();
 
