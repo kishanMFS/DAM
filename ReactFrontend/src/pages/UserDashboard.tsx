@@ -33,8 +33,8 @@ function UserDashboard() {
   }, []);
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold">User Dashboard</h1>
+    <div className="mx-auto w-full max-w-4xl">
+      <h2 className="mb-2 text-2xl font-bold">User Dashboard</h2>
 
       <UploadSection
         onUploadComplete={(objectNames) => {

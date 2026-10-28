@@ -15,18 +15,32 @@ import LoginForm from "../components/LoginForm";
 
 function Login() {
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-xl p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-slate-800">DAM Platform</h1>
-            <p className="text-slate-500 mt-2">Digital Asset Management</p>
-          </div>
+    <>
+      <a
+        href="#main-content"
+        className="sr-only z-50 rounded bg-white p-3 text-blue-800 focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:ring-2 focus:ring-blue-700"
+      >
+        Skip to main content
+      </a>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex min-h-screen items-center justify-center bg-slate-100 p-4 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-700"
+      >
+        <div className="w-full max-w-md">
+          <div className="rounded-xl bg-white p-8 shadow-xl">
+            <div className="mb-8 text-center">
+              <h1 className="text-3xl font-bold text-slate-800">
+                DAM Platform
+              </h1>
+              <p className="mt-2 text-slate-600">Digital Asset Management</p>
+            </div>
 
-          <LoginForm />
+            <LoginForm />
+          </div>
         </div>
-      </div>
-    </div>
+      </main>
+    </>
   );
 }
 

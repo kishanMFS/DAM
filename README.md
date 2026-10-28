@@ -12,7 +12,6 @@ Digital Asset Management (DAM) Platform. Companies today generate and manage a l
 │   ├── Dockerfile
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── .env.production
 │   ├── _test_/
 │   └── src/
 │       ├── config/
@@ -94,12 +93,13 @@ npm run worker
 
 ## **Local Docker deployment**
 
-1. Clone the repository:
+1. Copy the example environment file and provide strong local or production
+   values for every blank secret/origin. Never commit `.env`:
    ```bash
-   git clone https://github.com/kishanMFS/DAM.git
-   cd Digital-Asset-Management
+   cp .env.example .env
    ```
-2. Build and start all services in Docker:
+   On PowerShell, use `Copy-Item .env.example .env`.
+2. Clone the repository if needed, then build and start all services:
    ```bash
    docker compose up -d --build
    ```
@@ -128,9 +128,47 @@ npm run composedown
 ## **Configuration notes**
 
 - `docker-compose.yml` defines the multi-service stack: `frontend`, `backend`, `worker`, `postgres`, `minio`, and `rabbitmq`.
-- The backend and worker services load environment variables from `./NodeBackend/.env.production` and `./worker/.env.production`.
+- `.env` provides compose-time credentials and service configuration; `.env.example` contains placeholders only.
+- PostgreSQL runs initialization as the separate `POSTGRES_USER` administrator; the init script provisions `DB_USER` with application table/sequence grants for backend and worker access.
+- The backend and worker receive database, RabbitMQ, and MinIO connection settings from Compose. Set `CORS_ORIGINS` to the exact browser-facing origin(s), and set `MINIO_PUBLIC_URL` to the public site origin.
+- Generate unique secrets for production. The PostgreSQL and RabbitMQ passwords are embedded in connection URLs, so use URL-safe values (for example, hex-encoded random secrets).
+- PostgreSQL, MinIO, and RabbitMQ host ports bind to loopback only. Public traffic should go through a TLS-terminating reverse proxy in front of the included HTTP Nginx service.
 - Database initialization happens from `db/init.sql`.
 - MinIO uses `minio/minio.license`, `minio/certs`, and mounted `minio_data` volume.
+
+## **Production images and release flow**
+
+GitHub Actions runs the workspace build and test suites for every branch push
+and pull request. A successful push to `main` or `production` additionally
+builds and publishes these images to GitHub Container Registry (GHCR):
+
+- `ghcr.io/kishanmfs/dam-frontend`
+- `ghcr.io/kishanmfs/dam-backend`
+- `ghcr.io/kishanmfs/dam-worker`
+
+Each release is tagged `latest`, with its branch and commit SHA tags also
+available. Publishing images does not deploy them to a server. A repository
+administrator must grant the deployment host permission to pull private GHCR
+packages (or make the packages public).
+
+On the production host, check out the repository for the Compose file, Nginx
+configuration, and database initialization script. Create and secure its
+`.env` file, install the MinIO license/certificates, authenticate to GHCR if the
+packages are private, then pull and start the published images:
+
+```bash
+docker login ghcr.io
+docker compose pull frontend backend worker
+docker compose up -d --no-build
+```
+
+For reproducible rollbacks, set `IMAGE_TAG=sha-<commit>` in `.env` instead of
+using `latest` before running `docker compose pull` and `docker compose up`.
+Initialization scripts run only for a new PostgreSQL data volume. For an
+existing volume, provision the `DB_USER` role and required grants manually
+before switching the applications to it. Changing administrator or application
+credentials requires a database credential migration and must not be treated as
+an automatic rotation.
 
 ## **Docker service ports**
 
@@ -144,7 +182,7 @@ npm run composedown
 
 ## **Backend API endpoints**
 
-The Node backend exposes the following REST endpoints under the base URL `http://localhost:3001/api` when running locally via Docker.
+The Node backend exposes the following REST endpoints under the base URL `http://localhost/api` when running locally via Docker. Direct backend access is available at `http://localhost:3002/api`.
 
 > Protected endpoints require a valid `access_token` cookie unless noted otherwise.
 
