@@ -21,7 +21,7 @@ import corsOptions from './config/corsOptions.js';
 import { apiRateLimiter, authRateLimiter } from './middleware/rateLimiter.js';
 
 const app: express.Application = express();
-const PORT: string | number = env.PORT;
+const PORT = Number(env.PORT);
 const httpServer = createServer(app);
 
 // Security Headers
@@ -32,6 +32,10 @@ app.use(
     },
   }),
 );
+
+app.get('/health/live', (_request, response) => {
+  response.status(200).json({ status: 'ok' });
+});
 
 app.use(cors(corsOptions));
 app.use(express.json());

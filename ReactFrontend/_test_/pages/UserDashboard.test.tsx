@@ -3,6 +3,7 @@ import {
   render,
   screen,
   fireEvent,
+  within,
   waitFor,
 } from "@testing-library/react";
 import { Provider } from "react-redux";
@@ -133,7 +134,7 @@ describe("UserDashboard test cases", () => {
       ),
     );
     expect(await screen.findByText("Showing 1-8 of 20")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next gallery page" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringMatching(/\/assets\?limit=8&offset=8/),
@@ -200,9 +201,40 @@ describe("UserDashboard test cases", () => {
 
         // gallery fetch (GET /assets)
         if (url.includes("/assets") && (!init || init.method === "GET")) {
+          if (url.includes("sourceObjectNames=")) {
+            return Promise.resolve(
+              createFetchResponse({
+                success: true,
+                data: [
+                  {
+                    id: "1",
+                    storage_key: "obj1",
+                    original_name: "test.png",
+                    downloadUrl: "https://cdn.example/test.png",
+                    mime_type: "image/png",
+                    file_size: 1.23,
+                    status: "processing",
+                  },
+                ],
+              }),
+            );
+          }
+
           if (uploadCompleted) {
             return Promise.resolve(
               createFetchResponse({
+                success: true,
+                data: [
+                  {
+                    id: "1",
+                    storage_key: "obj1",
+                    original_name: "test.png",
+                    downloadUrl: "https://cdn.example/test.png",
+                    mime_type: "image/png",
+                    file_size: 1.23,
+                    status: "processing",
+                  },
+                ],
                 files: [
                   {
                     id: "1",
@@ -284,8 +316,18 @@ describe("UserDashboard test cases", () => {
       );
     });
 
-    // verify the upload-related API interactions occurred (gallery polling covered elsewhere)
-    expect(fetchMock).toHaveBeenCalled();
+    await waitFor(
+      () => {
+        const processingRequests = fetchMock.mock.calls.filter(([input]) =>
+          String(input).includes("sourceObjectNames="),
+        );
+        expect(processingRequests.length).toBeGreaterThanOrEqual(2);
+        expect(processingRequests[0][0]).toContain(
+          "sourceObjectNames=%5B%22obj1%22%5D",
+        );
+      },
+      { timeout: 5000 },
+    );
   });
 
   test("renders video progress bar from gallery file progress", async () => {
@@ -329,6 +371,52 @@ describe("UserDashboard test cases", () => {
     expect(
       screen.queryByRole("button", { name: /delete video\.mp4/i }),
     ).not.toBeInTheDocument();
+  });
+
+  test("opens an accessible image preview modal and restores focus on Escape", async () => {
+    const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+    fetchMock.mockResolvedValue(
+      createFetchResponse({
+        success: true,
+        data: [
+          {
+            id: "image-preview",
+            original_name: "preview.png",
+            downloadUrl: "https://cdn.example/preview.png",
+            mime_type: "image/png",
+            file_size: 1,
+            status: "complete",
+          },
+        ],
+        pagination: { total: 1, limit: 8, offset: 0 },
+      }),
+    );
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ErrorContextProvider>
+          <Gallery />
+        </ErrorContextProvider>
+      </QueryClientProvider>,
+    );
+
+    const previewButton = await screen.findByRole("button", {
+      name: "Preview preview.png",
+    });
+    previewButton.focus();
+    fireEvent.click(previewButton);
+
+    const dialog = screen.getByRole("dialog", { name: "preview.png" });
+    expect(
+      within(dialog).getByRole("img", { name: "preview.png" }),
+    ).toBeInTheDocument();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(previewButton).toHaveFocus();
+    });
   });
 
   test("keeps polling until all three lowercase-parent video variants are listed", async () => {
@@ -383,6 +471,89 @@ describe("UserDashboard test cases", () => {
       String(input).includes("sourceObjectNames="),
     );
     expect(processingRequests).toHaveLength(1);
+  });
+
+  test("shows processing progress from poll responses and stops when variants finish", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const source = {
+      id: "progress-source",
+      storage_key: "progress-source-object",
+      original_name: "progress-video.mp4",
+      downloadUrl: "https://cdn.example/progress-video.mp4",
+      mime_type: "video/mp4",
+      file_size: 12.34,
+      parentid: null,
+      tags: { dimensions: { width: 1280, height: 720 } },
+    };
+    const variants = [240, 480, 720].map((height) => ({
+      id: `progress-variant-${height}`,
+      original_name: `progress-video - ${height}.mp4`,
+      downloadUrl: `https://cdn.example/progress-video-${height}.mp4`,
+      mime_type: "video/mp4",
+      file_size: 4.56,
+      parentid: source.id,
+      status: "complete",
+      progress: 100,
+      tags: { dimensions: { width: height * 2, height } },
+    }));
+    let pollCount = 0;
+    const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+    fetchMock.mockImplementation((input) => {
+      if (String(input).includes("sourceObjectNames=")) {
+        pollCount += 1;
+        const files =
+          pollCount === 1
+            ? [
+                source,
+                {
+                  ...variants[0],
+                  status: "processing" as const,
+                  progress: 35,
+                },
+              ]
+            : [source, ...variants];
+        return Promise.resolve(
+          createFetchResponse({ success: true, data: files }),
+        );
+      }
+
+      return Promise.resolve(
+        createFetchResponse({
+          success: true,
+          data: [source, ...variants],
+          pagination: { total: 4, limit: 8, offset: 0 },
+        }),
+      );
+    });
+    queryClient.setQueryData(["getfiles", 0, ""], {
+      data: [source],
+      pagination: { total: 1, limit: 8, offset: 0 },
+    });
+    const onPollingStopped = jest.fn();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ErrorContextProvider>
+          <Gallery
+            shouldPoll
+            sourceObjectNames={[source.storage_key]}
+            onPollingStopped={onPollingStopped}
+          />
+        </ErrorContextProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole("progressbar", {
+        name: "Processing progress-video - 240.mp4",
+      }),
+    ).toHaveAttribute("aria-valuenow", "35");
+    await waitFor(() => expect(onPollingStopped).toHaveBeenCalledTimes(1), {
+      timeout: 5000,
+    });
+    expect(pollCount).toBeGreaterThanOrEqual(2);
   });
 
   test.each([
