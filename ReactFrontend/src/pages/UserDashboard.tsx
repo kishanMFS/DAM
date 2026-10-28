@@ -33,7 +33,7 @@ function UserDashboard() {
   }, []);
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div>
       <h2 className="mb-2 text-2xl font-bold">User Dashboard</h2>
 
       <UploadSection

@@ -40,9 +40,6 @@ export default function Gallery({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
-  const [processingFiles, setProcessingFiles] = useState<UploadFileResponse[]>(
-    [],
-  );
   const [deletingAssetIds, setDeletingAssetIds] = useState<string[]>([]);
   const [previewMedia, setPreviewMedia] = useState<GalleryPreviewMedia | null>(
     null,
@@ -104,33 +101,8 @@ export default function Gallery({
   }, [activeUploads.length, onUploadsSynced, syncedObjectNames]);
 
   const pendingUploads = activeUploads.filter(
-    (upload) =>
-      !syncedObjectNames.includes(upload.objectName) &&
-      !processingFiles.some((file) => file.storage_key === upload.objectName),
+    (upload) => !syncedObjectNames.includes(upload.objectName),
   );
-  const displayedFiles = useMemo(() => {
-    const uploadedFilesById = new Map(
-      uploadedFiles.map((file) => [file.id, file]),
-    );
-    const processingFileIds = new Set(processingFiles.map((file) => file.id));
-    const updatedProcessingFiles = processingFiles.map((processingFile) => {
-      const currentFile = uploadedFilesById.get(processingFile.id);
-      if (!currentFile) return processingFile;
-
-      return {
-        ...processingFile,
-        ...currentFile,
-        status: processingFile.status ?? currentFile.status,
-        progress: processingFile.progress ?? currentFile.progress,
-        tags: processingFile.tags ?? currentFile.tags,
-      };
-    });
-
-    return [
-      ...updatedProcessingFiles,
-      ...uploadedFiles.filter((file) => !processingFileIds.has(file.id)),
-    ].slice(0, PAGE_SIZE);
-  }, [processingFiles, uploadedFiles]);
 
   const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollingRunIdRef = useRef(0);
@@ -157,7 +129,6 @@ export default function Gallery({
 
       sourceObjectNamesRef.current = objectNames;
       pollingActiveRef.current = true;
-      setProcessingFiles([]);
       const runId = ++pollingRunIdRef.current;
       setIsPolling(true);
 
@@ -170,20 +141,42 @@ export default function Gallery({
           });
           if (pollingRunIdRef.current !== runId) return;
           const latestFiles = processingResponse.data ?? [];
-          setProcessingFiles((previousFiles) => {
-            const previousFilesById = new Map(
-              previousFiles.map((file) => [file.id, file]),
-            );
-            return latestFiles.map((file) => {
-              const previousFile = previousFilesById.get(file.id);
-              if (!previousFile) return file;
+          const latestFilesById = new Map(
+            latestFiles.map((file) => [file.id, file]),
+          );
+          queryClient.setQueryData<UploadFilesResponse>(
+            galleryQueryKey,
+            (current) => {
+              if (!current?.data) return current;
 
-              return {
-                ...file,
-                downloadUrl: previousFile.downloadUrl,
-              };
-            });
-          });
+              let hasChanges = false;
+              const data = current.data.map((file) => {
+                const latestFile = latestFilesById.get(file.id);
+                if (!latestFile) return file;
+
+                const statusChanged =
+                  latestFile.status !== undefined &&
+                  latestFile.status !== file.status;
+                const progressChanged =
+                  latestFile.progress !== undefined &&
+                  latestFile.progress !== file.progress;
+                if (!statusChanged && !progressChanged) return file;
+
+                hasChanges = true;
+                return {
+                  ...file,
+                  ...(latestFile.status !== undefined
+                    ? { status: latestFile.status }
+                    : {}),
+                  ...(latestFile.progress !== undefined
+                    ? { progress: latestFile.progress }
+                    : {}),
+                };
+              });
+
+              return hasChanges ? { ...current, data } : current;
+            },
+          );
           const sourceFiles = latestFiles.filter(
             (file) =>
               file.storage_key &&
@@ -192,7 +185,7 @@ export default function Gallery({
           const derivedFiles = latestFiles.filter(
             (file) => file.parentId != null || file.parentid != null,
           );
-          const allProcessed =
+          const allComplete =
             sourceFiles.length === sourceObjectNamesRef.current.length &&
             sourceFiles.length > 0 &&
             sourceFiles.every((source) => {
@@ -222,9 +215,8 @@ export default function Gallery({
               );
             });
 
-          if (allProcessed) {
+          if (allComplete) {
             await queryClient.invalidateQueries({ queryKey: ["getfiles"] });
-            setProcessingFiles([]);
             stopPolling();
             return;
           }
@@ -249,7 +241,7 @@ export default function Gallery({
         void poll();
       }, 800);
     },
-    [queryClient, showErrorMessage, stopPolling],
+    [galleryQueryKey, queryClient, showErrorMessage, stopPolling],
   );
 
   // Resume polling for variants that were already processing on page load.
@@ -361,7 +353,7 @@ export default function Gallery({
   };
 
   return (
-    <section aria-labelledby="gallery-heading" className="w-full">
+    <section aria-labelledby="gallery-heading">
       <div className="mt-3 mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center justify-between gap-3">
           <h2 id="gallery-heading" className="text-xl font-bold">
@@ -386,13 +378,13 @@ export default function Gallery({
         />
       </div>
 
-      {displayedFiles.length === 0 && pendingUploads.length === 0 ? (
+      {uploadedFiles.length === 0 && pendingUploads.length === 0 ? (
         <p className="py-12 text-center text-slate-600" role="status">
           {searchQuery ? "No files match your search" : "No uploaded files yet"}
         </p>
       ) : (
         <GalleryAssetList
-          files={displayedFiles}
+          files={uploadedFiles}
           pendingUploads={pendingUploads}
           isAdmin={isAdmin}
           deletingAssetIds={deletingAssetIds}
