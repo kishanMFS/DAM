@@ -75,6 +75,8 @@ describe("Login page", () => {
       "changeme",
     );
     expect(screen.getByRole("button", { name: /login/i })).toBeTruthy();
+    expect(screen.getByLabelText("Email")).toBeTruthy();
+    expect(screen.getByLabelText("Password")).toBeTruthy();
   });
 
   test("submits user@mail.com/changeme and navigates to the user dashboard", async () => {
