@@ -5,10 +5,6 @@ on:
     branches:
       - "**"
   pull_request:
-    branches:
-      - development
-      - stage
-      - main
   workflow_dispatch:
 
 permissions:
@@ -42,3 +38,67 @@ jobs:
 
       - name: Test all workspaces
         run: npm test
+
+  publish-production-images:
+    name: Publish production images
+    if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'production')
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: frontend
+            dockerfile: ReactFrontend/Dockerfile
+          - app: backend
+            dockerfile: NodeBackend/Dockerfile
+          - app: worker
+            dockerfile: worker/Dockerfile
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Normalize image repository
+        id: image-repository
+        shell: bash
+        run: |
+          repository="${GITHUB_REPOSITORY,,}"
+          echo "name=ghcr.io/${repository}-${{ matrix.app }}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tags and labels
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image-repository.outputs.name }}
+          tags: |
+            type=raw,value=latest
+            type=ref,event=branch
+            type=sha,prefix=sha-
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          provenance: mode=max
+          sbom: true

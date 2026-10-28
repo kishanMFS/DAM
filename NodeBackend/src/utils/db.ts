@@ -2,10 +2,19 @@ import pgPromise from 'pg-promise';
 import env from '@/config/env.js';
 
 const dbURL = env.DB_URL || '';
+const connectionConfig = dbURL
+  ? { connectionString: dbURL }
+  : {
+      host: env.DB_HOST,
+      port: env.DB_PORT,
+      database: env.DB_NAME,
+      user: env.DB_USER,
+      password: env.DB_PASSWORD,
+    };
 
 const pgp = pgPromise();
 const db = pgp({
-  connectionString: dbURL,
+  ...connectionConfig,
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,

@@ -4,65 +4,80 @@ import useAuth from "../hooks/useAuth";
 export default function LoginForm() {
   const [email, setEmail] = useState("john@mail.com");
   const [password, setPassword] = useState("changeme");
-  const [error, setError] = useState("");
 
   const { loginUser, loginMutation } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     loginUser(email, password);
   };
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-slate-100">
-      <div className="bg-white shadow-lg rounded-xl p-8">
-        <h1 className="text-3xl font-bold mb-6 text-center">DAM Login</h1>
+    <section aria-labelledby="login-heading">
+      <div className="w-full rounded-xl bg-white p-8 shadow-lg">
+        <h2 id="login-heading" className="mb-6 text-center text-3xl font-bold">
+          DAM Login
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
-          {(error || loginMutation.isError) && (
-            <div className="bg-red-100 text-red-700 p-3 rounded">
-              {error || "Login failed"}
+          {loginMutation.isError && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="rounded bg-red-100 p-3 text-red-800"
+            >
+              Login failed. Check your email and password and try again.
             </div>
           )}
 
           <div>
-            <label className="block mb-2 font-medium">Email</label>
-
+            <label
+              htmlFor="login-email"
+              className="mb-2 block font-medium text-slate-900"
+            >
+              Email
+            </label>
             <input
+              id="login-email"
+              name="email"
               type="email"
+              autoComplete="username"
+              required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border rounded-lg p-3"
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded-lg border border-slate-400 p-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
               placeholder="admin@dam.com"
             />
           </div>
 
           <div>
-            <label className="block mb-2 font-medium">Password</label>
-
+            <label
+              htmlFor="login-password"
+              className="mb-2 block font-medium text-slate-900"
+            >
+              Password
+            </label>
             <input
+              id="login-password"
+              name="password"
               type="password"
+              autoComplete="current-password"
+              required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border rounded-lg p-3"
+              onChange={(event) => setPassword(event.target.value)}
+              className="w-full rounded-lg border border-slate-400 p-3 focus:outline-none focus:ring-2 focus:ring-blue-700"
               placeholder="********"
             />
           </div>
 
           <button
+            type="submit"
             disabled={loginMutation.isPending}
-            className="w-full bg-blue-600 text-white rounded-lg py-3 hover:bg-blue-700"
+            className="w-full rounded-lg bg-blue-700 py-3 text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-700 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loginMutation.isPending ? "Signing In..." : "Login"}
           </button>
-
-          {/* <div className="text-center">
-            <a href="/auth/forgot-password" className="text-blue-600">
-              Forgot Password?
-            </a>
-          </div> */}
         </form>
       </div>
-    </div>
+    </section>
   );
 }

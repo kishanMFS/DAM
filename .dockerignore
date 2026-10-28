@@ -1,0 +1,17 @@
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/_test_
+**/.env
+**/.env.*
+**/*.log
+.git
+.github
+.husky
+.vscode
+minio/data
+minio/certs
+minio/minio.license
+db
+worker/temp
