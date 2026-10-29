@@ -19,6 +19,7 @@ import { ErrorContextProvider } from "../../src/context/ErrorContext";
 import ErrorBoundaryWrapper from "../../src/components/ErrorBoundaryWrapper";
 import UserDashboard from "../../src/pages/UserDashboard";
 import Gallery from "../../src/components/Gallery";
+import Layout from "../../src/components/Layout";
 
 const createFetchResponse = (body: unknown, ok = true, status = 200) =>
   ({ ok, status, json: async () => body }) as unknown as Response;
@@ -70,6 +71,8 @@ const renderDashboard = () => {
 describe("UserDashboard test cases", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.removeItem("dam-theme");
+    document.documentElement.classList.remove("dark");
     uploadRequests.length = 0;
     Object.defineProperty(globalThis, "fetch", {
       value: jest.fn(),
@@ -83,6 +86,32 @@ describe("UserDashboard test cases", () => {
     globalThis.URL.revokeObjectURL = jest.fn();
   });
 
+  test("persists dark mode preference and toggles the root theme class", async () => {
+    localStorage.setItem("dam-theme", "dark");
+    render(
+      <MemoryRouter>
+        <Provider store={configureStore({ reducer: { auth: authReducer } })}>
+          <QueryClientProvider client={new QueryClient()}>
+            <ErrorContextProvider>
+              <Layout />
+            </ErrorContextProvider>
+          </QueryClientProvider>
+        </Provider>
+      </MemoryRouter>,
+    );
+
+    expect(document.documentElement).toHaveClass("dark");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch to light mode" }),
+    );
+    expect(localStorage.getItem("dam-theme")).toBe("light");
+    expect(document.documentElement).not.toHaveClass("dark");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch to dark mode" }),
+    );
+    await waitFor(() => expect(localStorage.getItem("dam-theme")).toBe("dark"));
+    expect(document.documentElement).toHaveClass("dark");
+  });
   test("renders dashboard and initial gallery state", () => {
     renderDashboard();
     expect(

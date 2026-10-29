@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-// import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import useAuth from "../hooks/useAuth";
 import useErrorContext from "../hooks/useError";
 import Error from "./Error";
@@ -7,6 +7,14 @@ import Error from "./Error";
 function Layout() {
   const { logoutUser } = useAuth();
   const { errorMessage, closeError } = useErrorContext();
+  const [darkMode, setDarkMode] = useState(
+    () => localStorage.getItem("dam-theme") === "dark",
+  );
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", darkMode);
+    localStorage.setItem("dam-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
   // const [currentDateTime, setCurrentDateTime] = useState(
   //   new Date().toLocaleString(),
@@ -52,6 +60,17 @@ function Layout() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDarkMode((enabled) => !enabled)}
+              aria-label={
+                darkMode ? "Switch to light mode" : "Switch to dark mode"
+              }
+              aria-pressed={darkMode}
+              className="min-h-11 min-w-11 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xl text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
             <button
               type="button"
               onClick={handleLogout}
