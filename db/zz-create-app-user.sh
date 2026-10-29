@@ -20,7 +20,7 @@ SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'app_us
 SELECT format('GRANT USAGE, CREATE ON SCHEMA public TO %I', :'app_user')
 \gexec
 
-SELECT format('GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO %I', :'app_user')
+SELECT format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO %I', :'app_user')
 \gexec
 
 SELECT format('GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO %I', :'app_user')

@@ -9,6 +9,7 @@ export async function createAsset(
   task: MediaTask,
   originalName: string,
   storage_key: string,
+  mimeType: string,
 ) {
   return await db.one(
     `
@@ -16,7 +17,7 @@ export async function createAsset(
       (
         original_name,
         storage_key,
-        status,
+        mime_type,
         progress,
         uploaded_by,
         parentid
@@ -25,7 +26,7 @@ export async function createAsset(
       ($1,$2,$3,$4,$5,$6)
       RETURNING *
     `,
-    [originalName, storage_key, "processing", 0, task.userid, task.fileid],
+    [originalName, storage_key, mimeType, 0, task.userid, task.fileid],
   );
 }
 
@@ -38,7 +39,7 @@ export async function updateAssetProgress(
     `
         UPDATE assets
         SET
-            progress = $2,
+            progress = GREATEST(COALESCE(progress, 0), $2),
             status = $3,
             updated_at = NOW()
         WHERE id = $1
@@ -107,7 +108,10 @@ export async function insertAssetTags(
   );
 }
 
-export async function updateAssetStatus(assetId: string, status: string) {
+export async function updateAssetStatus(
+  assetId: string,
+  status: string | null,
+) {
   return db.none(
     `
         UPDATE assets

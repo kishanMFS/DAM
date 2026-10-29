@@ -330,6 +330,64 @@ describe("UserDashboard test cases", () => {
     );
   });
 
+  test("keeps upload progress visible while its processing row is polled", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+    fetchMock.mockImplementation((input) =>
+      Promise.resolve(
+        createFetchResponse({
+          success: true,
+          data: String(input).includes("sourceObjectNames=")
+            ? [
+                {
+                  id: "source-1",
+                  storage_key: "video-object",
+                  original_name: "video.mp4",
+                  downloadUrl: "blob:video",
+                  mime_type: "video/mp4",
+                  file_size: 12,
+                  status: "processing",
+                },
+              ]
+            : [],
+        }),
+      ),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ErrorContextProvider>
+          <Gallery
+            shouldPoll
+            sourceObjectNames={["video-object"]}
+            activeUploads={[
+              {
+                id: "upload-1",
+                objectName: "video-object",
+                originalName: "video.mp4",
+                preview: "blob:video",
+                mimeType: "video/mp4",
+                size: 12,
+                progress: 50,
+                uploaded: true,
+              },
+            ]}
+          />
+        </ErrorContextProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("Upload progress")).toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", { name: "Uploading video.mp4" }),
+    ).toHaveAttribute("aria-valuenow", "50");
+    expect(
+      screen.queryByText(/processing video|upload complete/i),
+    ).not.toBeInTheDocument();
+  });
+
   test("renders video progress bar from gallery file progress", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -342,11 +400,12 @@ describe("UserDashboard test cases", () => {
           id: "2",
           original_name: "video.mp4",
           downloadUrl: "https://cdn.example/video.mp4",
-          mime_type: "video/mp4",
-          file_size: 12.34,
+          file_size: 0,
           parentid: "source-asset-id",
           status: "processing",
           progress: 45,
+          tags: { fileSizeMB: 4.56, mimeType: "video/mp4" },
+          mime_type: undefined,
         },
       ],
     });
@@ -368,9 +427,146 @@ describe("UserDashboard test cases", () => {
     expect(progressInner).toBeTruthy();
     expect(progressInner).toHaveAttribute("aria-valuenow", "45");
     expect(screen.getByText("45%")).toBeInTheDocument();
+    expect(screen.getByText("4.56 MB")).toBeInTheDocument();
+    expect(screen.getByText("video/mp4")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /delete video\.mp4/i }),
     ).not.toBeInTheDocument();
+  });
+
+  test("updates video variant progress from polling responses without source processing UI", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+      },
+    });
+    const source = {
+      id: "video-source",
+      storage_key: "video-object",
+      original_name: "video.mp4",
+      downloadUrl: "https://cdn.example/video.mp4",
+      mime_type: "video/mp4",
+      file_size: 12,
+      parentid: null,
+      status: "processing" as const,
+    };
+    const variant = {
+      id: "video-variant",
+      parentid: source.id,
+      original_name: "video - 240.mp4",
+      downloadUrl: "https://cdn.example/video-240.mp4",
+      mime_type: "video/mp4",
+      file_size: 4,
+      status: "processing" as const,
+      progress: 20,
+    };
+    let pollCount = 0;
+    const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+    fetchMock.mockImplementation((input) => {
+      if (String(input).includes("sourceObjectNames=")) {
+        pollCount += 1;
+        return Promise.resolve(
+          createFetchResponse({
+            success: true,
+            data: [source, { ...variant, progress: pollCount === 1 ? 40 : 65 }],
+          }),
+        );
+      }
+
+      return Promise.resolve(createFetchResponse({ success: true, data: [] }));
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ErrorContextProvider>
+          <Gallery shouldPoll sourceObjectNames={[source.storage_key]} />
+        </ErrorContextProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole("progressbar", {
+            name: "Processing video - 240.mp4",
+          }),
+        ).toHaveAttribute("aria-valuenow", "65"),
+      { timeout: 5000 },
+    );
+    expect(screen.getByText("65%")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("progressbar", { name: "Processing video.mp4" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Processing video")).not.toBeInTheDocument();
+  });
+
+  test("shows newly polled processing assets before the current gallery page", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+      },
+    });
+    const existingFiles = Array.from({ length: 8 }, (_, index) => ({
+      id: `existing-${index}`,
+      original_name: `existing-${index}.png`,
+      downloadUrl: `https://cdn.example/existing-${index}.png`,
+      mime_type: "image/png",
+      file_size: 1,
+      status: "complete" as const,
+    }));
+    queryClient.setQueryData(["getfiles", 0, ""], {
+      data: existingFiles,
+      pagination: { total: 8, limit: 8, offset: 0 },
+    });
+
+    const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      if (String(input).includes("sourceObjectNames=")) {
+        return Promise.resolve(
+          createFetchResponse({
+            success: true,
+            data: [
+              {
+                id: "new-source",
+                storage_key: "new-object",
+                original_name: "new-image.png",
+                downloadUrl: "https://cdn.example/new-image.png",
+                mime_type: "image/png",
+                file_size: 1,
+                status: "processing",
+              },
+              {
+                id: "new-variant",
+                parentid: "new-source",
+                original_name: "new-thumbnail.jpg",
+                downloadUrl: "https://cdn.example/new-thumbnail.jpg",
+                mime_type: "image/jpeg",
+                file_size: 1,
+                status: "processing",
+                progress: 45,
+              },
+            ],
+          }),
+        );
+      }
+
+      return Promise.resolve(createFetchResponse({ success: true, data: [] }));
+    });
+
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <ErrorContextProvider>
+          <Gallery shouldPoll sourceObjectNames={["new-object"]} />
+        </ErrorContextProvider>
+      </QueryClientProvider>,
+    );
+
+    const progressBar = await screen.findByRole("progressbar", {
+      name: "Processing new-thumbnail.jpg",
+    });
+    const cards = Array.from(container.querySelectorAll("article"));
+    expect(cards.indexOf(progressBar.closest("article")!)).toBeLessThan(8);
+    expect(progressBar).toHaveAttribute("aria-valuenow", "45");
   });
 
   test("opens an accessible image preview modal and restores focus on Escape", async () => {
@@ -419,7 +615,86 @@ describe("UserDashboard test cases", () => {
     });
   });
 
-  test("keeps polling until all three lowercase-parent video variants are listed", async () => {
+  test("keeps polling while any child asset is processing", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const source = {
+      id: "source-id",
+      storage_key: "source-object",
+      original_name: "video.mp4",
+      downloadUrl: "https://cdn.example/video.mp4",
+      mime_type: "video/mp4",
+      file_size: 12.34,
+      parentid: null,
+      status: "processing" as const,
+      tags: { dimensions: { height: 72 } },
+    };
+    const processingChild = {
+      id: "child-id",
+      parentid: source.id,
+      original_name: "video - 240.mp4",
+      downloadUrl: "https://cdn.example/video-240.mp4",
+      mime_type: "video/mp4",
+      status: "processing" as const,
+      progress: 50,
+    };
+    let pollCount = 0;
+    const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+    fetchMock.mockImplementation((input) => {
+      if (String(input).includes("sourceObjectNames=")) {
+        pollCount += 1;
+        const responseSource =
+          pollCount === 1 ? source : { ...source, status: "complete" as const };
+        return Promise.resolve(
+          createFetchResponse({
+            success: true,
+            data: [
+              responseSource,
+              ...(pollCount === 1
+                ? [processingChild]
+                : [240, 480, 720].map((height) => ({
+                    ...processingChild,
+                    id: `child-${height}`,
+                    status: "complete" as const,
+                    progress: 100,
+                    tags: { dimensions: { height } },
+                  }))),
+            ],
+          }),
+        );
+      }
+
+      return Promise.resolve(createFetchResponse({ success: true, data: [] }));
+    });
+    queryClient.setQueryData(["getfiles", 0, ""], { data: [source] });
+    const onPollingStopped = jest.fn();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ErrorContextProvider>
+          <Gallery
+            shouldPoll
+            sourceObjectNames={[source.storage_key]}
+            onPollingStopped={onPollingStopped}
+          />
+        </ErrorContextProvider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(pollCount).toBeGreaterThanOrEqual(2), {
+      timeout: 5000,
+    });
+    await waitFor(() => expect(onPollingStopped).toHaveBeenCalledTimes(1), {
+      timeout: 5000,
+    });
+    const processingRequests = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes("sourceObjectNames="),
+    );
+    expect(processingRequests).toHaveLength(2);
+  });
+
+  test("stops polling after successful variants clear their status", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -431,6 +706,7 @@ describe("UserDashboard test cases", () => {
       mime_type: "video/mp4",
       file_size: 12.34,
       parentid: null,
+      status: null,
     };
     const variants = [240, 480, 720].map((height) => ({
       id: `variant-${height}`,
@@ -439,12 +715,15 @@ describe("UserDashboard test cases", () => {
       mime_type: "video/mp4",
       file_size: 4.56,
       parentid: source.id,
-      status: "complete",
+      status: null,
       tags: { dimensions: { width: height * 2, height } },
     }));
     const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
     fetchMock.mockResolvedValue(
-      createFetchResponse({ success: true, data: [source, ...variants] }),
+      createFetchResponse({
+        success: true,
+        data: [source, ...variants],
+      }),
     );
     queryClient.setQueryData(["getfiles", 0, ""], { data: [source] });
     const onPollingStopped = jest.fn();
@@ -471,6 +750,71 @@ describe("UserDashboard test cases", () => {
       String(input).includes("sourceObjectNames="),
     );
     expect(processingRequests).toHaveLength(1);
+  });
+
+  test("adds newly created processing variants to the gallery while polling", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+      },
+    });
+    const source = {
+      id: "image-source",
+      storage_key: "image-object",
+      original_name: "image.png",
+      downloadUrl: "https://cdn.example/image.png",
+      mime_type: "image/png",
+      file_size: 1.2,
+      parentid: null,
+      status: "processing" as const,
+    };
+    const variant = {
+      id: "image-thumbnail",
+      original_name: "image-thumbnail.jpg",
+      downloadUrl: "https://cdn.example/image-thumbnail.jpg",
+      mime_type: "image/jpeg",
+      file_size: 0.1,
+      parentid: source.id,
+      status: "processing" as const,
+      progress: 35,
+    };
+    const fetchMock = globalThis.fetch as jest.MockedFunction<typeof fetch>;
+    fetchMock.mockImplementation((input) => {
+      if (String(input).includes("sourceObjectNames=")) {
+        return Promise.resolve(
+          createFetchResponse({ success: true, data: [source, variant] }),
+        );
+      }
+
+      return Promise.resolve(
+        createFetchResponse({
+          success: true,
+          data: [source],
+          pagination: { total: 1, limit: 8, offset: 0 },
+        }),
+      );
+    });
+    queryClient.setQueryData(["getfiles", 0, ""], {
+      success: true,
+      data: [source],
+      pagination: { total: 1, limit: 8, offset: 0 },
+    });
+
+    const { unmount } = render(
+      <QueryClientProvider client={queryClient}>
+        <ErrorContextProvider>
+          <Gallery shouldPoll sourceObjectNames={[source.storage_key]} />
+        </ErrorContextProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText("image-thumbnail.jpg")).toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", {
+        name: "Processing image-thumbnail.jpg",
+      }),
+    ).toHaveAttribute("aria-valuenow", "35");
+    unmount();
   });
 
   test.each([

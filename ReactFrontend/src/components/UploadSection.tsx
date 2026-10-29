@@ -145,7 +145,7 @@ export default function UploadSection({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-4">
       <UploadDropZone
         disabled={isUploading}
         dragging={dragging}
@@ -161,7 +161,7 @@ export default function UploadSection({
           <div>
             <h2 className="font-bold text-xl mb-4">Selected Files</h2>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {files.map((item) => (
                 <div
                   key={item.id}
