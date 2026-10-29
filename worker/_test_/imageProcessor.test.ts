@@ -65,8 +65,8 @@ describe("processImage", () => {
       .png()
       .toFile(inputPath);
 
-    mockedDb.one.mockResolvedValue({ id: "thumbnail-asset-id" } as never);
     mockedDb.none.mockResolvedValue(undefined as never);
+    mockedDb.one.mockResolvedValue({ id: "thumbnail-asset-id" } as never);
     mockedDb.oneOrNone.mockResolvedValue({ id: "thumbnail-asset-id" } as never);
     mockedMinio.fPutObject.mockResolvedValue("etag" as never);
     mockedMinio.removeObject.mockResolvedValue(undefined as never);
@@ -100,7 +100,11 @@ describe("processImage", () => {
     });
     expect(mockedDb.one).toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO assets"),
-      expect.arrayContaining(["test-image.jpg", "thumbnails/test-image.jpg"]),
+      expect.arrayContaining([
+        "test-image.jpg",
+        "thumbnails/test-image.jpg",
+        "image/jpeg",
+      ]),
     );
     expect(mockedDb.none).toHaveBeenCalledWith(
       expect.stringContaining("UPDATE assets"),
@@ -125,7 +129,11 @@ describe("processImage", () => {
     });
     expect(mockedDb.none).toHaveBeenCalledWith(
       expect.stringContaining("SET status = $2"),
-      ["thumbnail-asset-id", "complete"],
+      ["thumbnail-asset-id", null],
+    );
+    expect(mockedDb.none).toHaveBeenCalledWith(
+      expect.stringContaining("SET status = $2"),
+      ["source-image-id", null],
     );
     await expect(
       fs.access(path.resolve("temp/thumbnails/test-image.jpg")),
@@ -133,7 +141,9 @@ describe("processImage", () => {
   });
 
   test("removes the uploaded thumbnail if its asset was deleted before completion", async () => {
-    mockedDb.oneOrNone.mockResolvedValue(null as never);
+    mockedDb.oneOrNone
+      .mockResolvedValueOnce({ id: "source-image-id" } as never)
+      .mockResolvedValueOnce(null as never);
 
     await processImage(task, inputPath);
 
