@@ -21,6 +21,32 @@ type GalleryAssetListProps = {
 const isDerivedAsset = (file: UploadFileResponse) =>
   file.parentId != null || file.parentid != null;
 
+const getProgress = (progress: number | undefined) =>
+  typeof progress === "number" && Number.isFinite(progress)
+    ? Math.max(0, Math.min(100, progress))
+    : 0;
+
+const getFileSizeMb = (file: UploadFileResponse) => {
+  const fileSize = Number(file.file_size);
+  if (Number.isFinite(fileSize) && fileSize > 0) return fileSize;
+
+  const taggedFileSize = file.tags?.fileSizeMB;
+  return typeof taggedFileSize === "number" &&
+    Number.isFinite(taggedFileSize) &&
+    taggedFileSize > 0
+    ? taggedFileSize
+    : null;
+};
+
+const getMimeType = (file: UploadFileResponse) => {
+  if (file.mime_type) return file.mime_type;
+
+  const taggedMimeType = file.tags?.mimeType;
+  return typeof taggedMimeType === "string"
+    ? taggedMimeType
+    : "application/octet-stream";
+};
+
 const getResolution = (file: UploadFileResponse) => {
   const dimensions = file.tags?.dimensions;
   if (!dimensions || typeof dimensions !== "object") return null;
@@ -53,7 +79,7 @@ export default function GalleryAssetList({
   onDelete,
 }: GalleryAssetListProps) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
       {pendingUploads.map((upload) => (
         <article
           key={upload.id}
@@ -146,8 +172,9 @@ export default function GalleryAssetList({
       ))}
 
       {files.map((file) => {
-        const isImage = file.mime_type?.startsWith("image") ?? false;
-        const mediaType = file.mime_type ?? "application/octet-stream";
+        const isImage = getMimeType(file).startsWith("image");
+        const mediaType = getMimeType(file);
+        const fileSizeMb = getFileSizeMb(file);
 
         return (
           <article
@@ -191,17 +218,12 @@ export default function GalleryAssetList({
                 >
                   {file.original_name}
                 </p>
-                {file.status === "complete" && (
-                  <span className="rounded bg-green-100 px-2 py-1 text-xs text-green-700">
-                    Done
-                  </span>
-                )}
                 {file.status === "error" && (
                   <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700">
                     Error
                   </span>
                 )}
-                {file.status === "processing" && (
+                {isDerivedAsset(file) && file.status === "processing" && (
                   <span
                     role="status"
                     aria-live="polite"
@@ -212,13 +234,14 @@ export default function GalleryAssetList({
                 )}
               </div>
               <p className="text-xs text-slate-500">
-                {Number(file.file_size).toFixed(2)} MB
+                {fileSizeMb !== null
+                  ? `${fileSizeMb.toFixed(2)} MB`
+                  : file.status === "processing"
+                    ? "Calculating size..."
+                    : "Size unavailable"}
               </p>
-              <p
-                className="truncate text-xs text-slate-500"
-                title={file.mime_type}
-              >
-                {file.mime_type}
+              <p className="truncate text-xs text-slate-500" title={mediaType}>
+                {mediaType}
               </p>
               {getResolution(file) && (
                 <p className="text-xs text-slate-500">
@@ -226,31 +249,29 @@ export default function GalleryAssetList({
                 </p>
               )}
 
-              {isDerivedAsset(file) &&
-                file.status !== "complete" &&
-                file.progress !== undefined && (
-                  <div className="mt-3">
-                    <div className="mb-1 flex items-center justify-between text-xs">
-                      <span className="text-slate-600">Processing</span>
-                      <span className="font-medium text-slate-700">
-                        {file.progress}%
-                      </span>
-                    </div>
-                    <div
-                      className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
-                      role="progressbar"
-                      aria-label={`Processing ${file.original_name}`}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={file.progress}
-                    >
-                      <div
-                        className="h-full rounded-full bg-blue-600 transition-[width]"
-                        style={{ width: `${file.progress}%` }}
-                      />
-                    </div>
+              {isDerivedAsset(file) && file.status === "processing" && (
+                <div className="mt-3">
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="text-slate-600">Processing</span>
+                    <span className="font-medium text-slate-700">
+                      {getProgress(file.progress)}%
+                    </span>
                   </div>
-                )}
+                  <div
+                    className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
+                    role="progressbar"
+                    aria-label={`Processing ${file.original_name}`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={getProgress(file.progress)}
+                  >
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-[width]"
+                      style={{ width: `${getProgress(file.progress)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="mt-2 flex items-center justify-between gap-2">
                 {file.downloadUrl && (

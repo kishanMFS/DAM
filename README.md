@@ -91,6 +91,12 @@ npm run node
 npm run worker
 ```
 
+The worker connects to PostgreSQL, RabbitMQ, and MinIO on localhost by
+default. Copy `.env.example` to `.env`, fill in the database, RabbitMQ, and
+MinIO credentials, and start those services before running `npm run worker`.
+The worker also reads service-specific values from `.env.development` when
+present; otherwise it falls back to `.env`.
+
 ## **Local Docker deployment**
 
 1. Copy the example environment file and provide strong local or production
@@ -130,7 +136,7 @@ npm run composedown
 - `docker-compose.yml` defines the multi-service stack: `frontend`, `backend`, `worker`, `postgres`, `minio`, and `rabbitmq`.
 - `.env` provides compose-time credentials and service configuration; `.env.example` contains placeholders only.
 - PostgreSQL runs initialization as the separate `POSTGRES_USER` administrator; the init script provisions `DB_USER` with application table/sequence grants for backend and worker access.
-- The backend and worker receive database, RabbitMQ, and MinIO connection settings from Compose. Set `CORS_ORIGINS` to the exact browser-facing origin(s), and set `MINIO_PUBLIC_URL` to the public site origin.
+- The backend and worker receive database, RabbitMQ, and MinIO connection settings from Compose. Set `CORS_ORIGINS` to the exact browser-facing origin(s), and set `MINIO_PUBLIC_URL` to the public site origin. Presigned upload/download links are signed for this host, so the reverse proxy must preserve the incoming `Host` header and route `/dam-assets/` to MinIO.
 - Generate unique secrets for production. The PostgreSQL and RabbitMQ passwords are embedded in connection URLs, so use URL-safe values (for example, hex-encoded random secrets).
 - PostgreSQL, MinIO, and RabbitMQ host ports bind to loopback only. Public traffic should go through a TLS-terminating reverse proxy in front of the included HTTP Nginx service.
 - Database initialization happens from `db/init.sql`.

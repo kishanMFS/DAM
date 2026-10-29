@@ -21,6 +21,12 @@ export default ({ mode }) => {
         overlay: true,
       },
       port: Number(env.VITE_PORT),
+      proxy: {
+        "/dam-assets": {
+          target: env.VITE_MINIO_PROXY_TARGET || "http://127.0.0.1:9000",
+          changeOrigin: false,
+        },
+      },
     },
     preview: {
       port: Number(env.VITE_PORT),

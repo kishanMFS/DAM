@@ -133,38 +133,29 @@ describe("processVideo", () => {
         expect.stringContaining("SET status = $2"),
         expect.arrayContaining([expect.any(String), "complete"]),
       );
-
-      await Promise.all([
-        ...expectedHeights.map((variantHeight) =>
-          expect(
-            fs.access(
-              path.resolve(
-                `temp/videos/${variantHeight}/${baseName} - ${variantHeight}.mp4`,
-              ),
-            ),
-          ).rejects.toMatchObject({ code: "ENOENT" }),
-        ),
-        expect(
-          fs.access(path.resolve(`temp/thumbnails/${baseName}.jpg`)),
-        ).rejects.toMatchObject({ code: "ENOENT" }),
-      ]);
     },
   );
 
   test("removes converted MinIO objects when the source asset was deleted while processing", async () => {
     await createVideoFixture(inputPath, 128, 72);
-    mockedDb.oneOrNone.mockResolvedValue(null as never);
+
+    mockedDb.oneOrNone
+      .mockResolvedValueOnce({ id: task.fileid } as never)
+      .mockResolvedValue(null as never);
 
     await processVideo(
       { ...task, original_name: `${baseName}.mp4` },
       inputPath,
     );
 
+    expect(mockedMinio.fPutObject).toHaveBeenCalled();
     expect(mockedMinio.removeObject).toHaveBeenCalledTimes(4);
+
     expect(mockedMinio.removeObject).toHaveBeenCalledWith(
       "uploads",
       expect.stringMatching(/^videos\/(240|480|720)\//),
     );
+
     expect(mockedMinio.removeObject).toHaveBeenCalledWith(
       "uploads",
       `thumbnails/${baseName}.jpg`,

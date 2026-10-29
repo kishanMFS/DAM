@@ -11,6 +11,7 @@ import * as assetModel from "../models/assetModel.js";
 import type { MediaTask } from "@dam/shared-types";
 
 export async function processImage(task: MediaTask, filePath: string) {
+  if (!(await assetModel.assetExists(task.fileid))) return;
   const thumbDir = path.resolve("temp/thumbnails");
   await fs.mkdir(thumbDir, { recursive: true });
 
@@ -28,8 +29,10 @@ export async function processImage(task: MediaTask, filePath: string) {
       task,
       thumbFileName,
       thumbObject,
+      mime.lookup(thumbPath) || "image/jpeg",
     );
 
+    if (!createAssetResponse) return;
     assetid = createAssetResponse.id;
 
     // Processing started
@@ -80,12 +83,16 @@ export async function processImage(task: MediaTask, filePath: string) {
     // Complete
     await assetModel.updateAssetProgress(assetid, 100, "processing");
 
-    await assetModel.updateAssetStatus(assetid, "complete");
+    await assetModel.updateAssetStatus(assetid, null);
+    await assetModel.updateAssetStatus(task.fileid, null);
 
     // Cleanup
     await fs.unlink(thumbPath).catch(() => {});
   } catch (err) {
-    await assetModel.updateAssetStatus(assetid, "error");
+    await Promise.allSettled([
+      assetModel.updateAssetStatus(assetid, "error"),
+      assetModel.updateAssetStatus(task.fileid, "error"),
+    ]);
 
     logger.error("Image processing error", {
       message: err instanceof Error ? err.message : String(err),

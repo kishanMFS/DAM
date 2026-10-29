@@ -102,3 +102,29 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
           provenance: mode=max
           sbom: true
+
+  deploy-production:
+    name: Deploy production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: publish-production-images
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy images to production server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -eu
+
+            cd /opt/dam
+
+            export IMAGE_TAG="sha-${{ github.sha }}"
+
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f

@@ -40,6 +40,7 @@ export default function Gallery({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
+  const [polledFiles, setPolledFiles] = useState<UploadFileResponse[]>([]);
   const [deletingAssetIds, setDeletingAssetIds] = useState<string[]>([]);
   const [previewMedia, setPreviewMedia] = useState<GalleryPreviewMedia | null>(
     null,
@@ -85,14 +86,34 @@ export default function Gallery({
       ),
     [fileListData],
   );
+  const displayedFiles = useMemo(() => {
+    const uploadedFilesById = new Map(
+      uploadedFiles.map((file) => [file.id, file]),
+    );
+    const polledIds = new Set(polledFiles.map((file) => file.id));
+    const currentFiles = polledFiles.map((file) => {
+      const uploadedFile = uploadedFilesById.get(file.id);
+      if (!uploadedFile) return file;
+
+      return {
+        ...uploadedFile,
+        ...(file.status !== undefined ? { status: file.status } : {}),
+        ...(file.progress !== undefined ? { progress: file.progress } : {}),
+      };
+    });
+
+    return [
+      ...currentFiles,
+      ...uploadedFiles.filter((file) => !polledIds.has(file.id)),
+    ];
+  }, [polledFiles, uploadedFiles]);
   const totalAssets = fileListData?.pagination?.total ?? uploadedFiles.length;
-  const syncedObjectNames = useMemo(
-    () =>
-      uploadedFiles
-        .map((file) => file.storage_key)
-        .filter((objectName): objectName is string => objectName !== undefined),
-    [uploadedFiles],
-  );
+  const syncedObjectNames = useMemo(() => {
+    const objectNames = [...uploadedFiles, ...polledFiles]
+      .map((file) => file.storage_key)
+      .filter((objectName): objectName is string => objectName !== undefined);
+    return [...new Set(objectNames)];
+  }, [polledFiles, uploadedFiles]);
 
   useEffect(() => {
     if (activeUploads.length > 0 && syncedObjectNames.length > 0) {
@@ -103,7 +124,6 @@ export default function Gallery({
   const pendingUploads = activeUploads.filter(
     (upload) => !syncedObjectNames.includes(upload.objectName),
   );
-
   const pollingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollingRunIdRef = useRef(0);
   const pollingActiveRef = useRef(false);
@@ -128,6 +148,7 @@ export default function Gallery({
       }
 
       sourceObjectNamesRef.current = objectNames;
+      setPolledFiles([]);
       pollingActiveRef.current = true;
       const runId = ++pollingRunIdRef.current;
       setIsPolling(true);
@@ -141,6 +162,37 @@ export default function Gallery({
           });
           if (pollingRunIdRef.current !== runId) return;
           const latestFiles = processingResponse.data ?? [];
+          setPolledFiles((current) => {
+            const currentById = new Map(current.map((file) => [file.id, file]));
+            let hasChanges = false;
+            const nextFiles = latestFiles.map((latestFile) => {
+              const existingFile = currentById.get(latestFile.id);
+              if (!existingFile) {
+                hasChanges = true;
+                return latestFile;
+              }
+
+              const status =
+                latestFile.status !== undefined
+                  ? latestFile.status
+                  : existingFile.status;
+              const progress =
+                latestFile.progress !== undefined
+                  ? latestFile.progress
+                  : existingFile.progress;
+              if (
+                status === existingFile.status &&
+                progress === existingFile.progress
+              ) {
+                return existingFile;
+              }
+
+              hasChanges = true;
+              return { ...existingFile, status, progress };
+            });
+
+            return hasChanges ? nextFiles : current;
+          });
           const latestFilesById = new Map(
             latestFiles.map((file) => [file.id, file]),
           );
@@ -177,45 +229,49 @@ export default function Gallery({
               return hasChanges ? { ...current, data } : current;
             },
           );
+          const requestedSourceNames = sourceObjectNamesRef.current;
           const sourceFiles = latestFiles.filter(
             (file) =>
               file.storage_key &&
-              sourceObjectNamesRef.current.includes(file.storage_key),
+              requestedSourceNames.includes(file.storage_key),
           );
-          const derivedFiles = latestFiles.filter(
-            (file) => file.parentId != null || file.parentid != null,
-          );
-          const allComplete =
-            sourceFiles.length === sourceObjectNamesRef.current.length &&
-            sourceFiles.length > 0 &&
-            sourceFiles.every((source) => {
-              const variants = derivedFiles.filter(
-                (file) => (file.parentId ?? file.parentid) === source.id,
+          const allSourcesReturned =
+            sourceFiles.length === requestedSourceNames.length;
+          const allSourcesSettled = sourceFiles.every((source) => {
+            const expectedChildren = source.mime_type?.startsWith("video/")
+              ? source.tags?.dimensions &&
+                typeof source.tags.dimensions === "object" &&
+                "height" in source.tags.dimensions &&
+                typeof source.tags.dimensions.height === "number" &&
+                source.tags.dimensions.height >= 1080
+                ? 4
+                : 3
+              : 1;
+            const children = latestFiles.filter(
+              (file) =>
+                isDerivedAsset(file) &&
+                (file.parentId ?? file.parentid) === source.id,
+            );
+            if (source.status === "error") {
+              return children.every(
+                (file) =>
+                  file.status === null ||
+                  file.status === "complete" ||
+                  file.status === "error",
               );
-              const sourceDimensions = source.tags?.dimensions;
-              const sourceHeight =
-                sourceDimensions &&
-                typeof sourceDimensions === "object" &&
-                "height" in sourceDimensions &&
-                typeof sourceDimensions.height === "number"
-                  ? sourceDimensions.height
-                  : 0;
-              const expectedVariants = source.mime_type?.startsWith("video/")
-                ? sourceHeight >= 1080
-                  ? 4
-                  : 3
-                : 1;
+            }
 
-              return (
-                variants.length >= expectedVariants &&
-                variants.every(
-                  (file) =>
-                    file.status === "complete" || file.status === "error",
-                )
-              );
-            });
+            const settledChildren = children.filter(
+              (file) =>
+                file.status === null ||
+                file.status === "complete" ||
+                file.status === "error",
+            );
 
-          if (allComplete) {
+            return settledChildren.length >= expectedChildren;
+          });
+
+          if (allSourcesReturned && allSourcesSettled) {
             await queryClient.invalidateQueries({ queryKey: ["getfiles"] });
             stopPolling();
             return;
@@ -250,9 +306,7 @@ export default function Gallery({
 
     const hasPendingFiles = uploadedFiles.some(
       (file: UploadFileResponse) =>
-        isDerivedAsset(file) &&
-        file.status !== "complete" &&
-        file.status !== "error",
+        isDerivedAsset(file) && file.status === "processing",
     );
 
     if (hasPendingFiles) {
@@ -378,13 +432,13 @@ export default function Gallery({
         />
       </div>
 
-      {uploadedFiles.length === 0 && pendingUploads.length === 0 ? (
+      {displayedFiles.length === 0 && pendingUploads.length === 0 ? (
         <p className="py-12 text-center text-slate-600" role="status">
           {searchQuery ? "No files match your search" : "No uploaded files yet"}
         </p>
       ) : (
         <GalleryAssetList
-          files={uploadedFiles}
+          files={displayedFiles}
           pendingUploads={pendingUploads}
           isAdmin={isAdmin}
           deletingAssetIds={deletingAssetIds}

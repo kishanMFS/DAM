@@ -104,7 +104,7 @@ export const insertAssetDetails = async (files: AssetFile[], userid: string) => 
   files.forEach((file, index) => {
     const i = index * 5;
 
-    values.push(`($${i + 1}, $${i + 2}, $${i + 3}, $${i + 4}, $${i + 5})`);
+    values.push(`(${i + 1}, ${i + 2}, ${i + 3}, ${i + 4}, ${i + 5})`);
 
     params.push(file.objectName, file.originalName, file.fileType, file.size, userid);
   });

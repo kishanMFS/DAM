@@ -1,3 +1,4 @@
+import '../config/env.js';
 import amqp, { type ChannelModel, type ConfirmChannel } from 'amqplib';
 import logger from '../utils/winston.js';
 import type { MediaTask } from '@dam/shared-types';

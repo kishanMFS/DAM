@@ -39,7 +39,14 @@ const logger = createLogger({
 // If we're not in production then log to the `console` with the format:
 // `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
 //
-if (!isProd) {
+if (isProd) {
+  logger.add(
+    new transports.Console({
+      level: "error",
+      format: format.json(),
+    }),
+  );
+} else {
   logger.add(
     new transports.Console({
       format: format.simple(),
