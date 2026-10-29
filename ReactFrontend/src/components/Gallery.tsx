@@ -61,7 +61,9 @@ export default function Gallery({
   }, [searchQuery]);
 
   useEffect(() => {
-    sourceObjectNamesRef.current = sourceObjectNames;
+    if (sourceObjectNames.length > 0) {
+      sourceObjectNamesRef.current = sourceObjectNames;
+    }
   }, [sourceObjectNames]);
 
   // Fetch uploaded files
@@ -300,20 +302,29 @@ export default function Gallery({
     [galleryQueryKey, queryClient, showErrorMessage, stopPolling],
   );
 
-  // Resume polling for variants that were already processing on page load.
+  // Resume polls after reload by discovering pending source assets from the current page.
   useEffect(() => {
-    if (sourceObjectNames.length === 0) return;
-
-    const hasPendingFiles = uploadedFiles.some(
-      (file: UploadFileResponse) =>
-        isDerivedAsset(file) && file.status === "processing",
+    const processingChildParents = new Set(
+      uploadedFiles
+        .filter((file) => isDerivedAsset(file) && file.status === "processing")
+        .map((file) => file.parentId ?? file.parentid)
+        .filter((parentId): parentId is string => Boolean(parentId)),
     );
+    const pendingSourceNames = uploadedFiles
+      .filter(
+        (file) =>
+          !isDerivedAsset(file) &&
+          file.storage_key &&
+          (file.status === "processing" || processingChildParents.has(file.id)),
+      )
+      .map((file) => file.storage_key as string);
+    const namesToPoll =
+      sourceObjectNames.length > 0 ? sourceObjectNames : pendingSourceNames;
 
-    if (hasPendingFiles) {
-      startPolling(sourceObjectNames);
+    if (namesToPoll.length > 0) {
+      startPolling(namesToPoll);
     }
   }, [sourceObjectNames, startPolling, uploadedFiles]);
-
   useEffect(
     () => () => {
       pollingRunIdRef.current += 1;
