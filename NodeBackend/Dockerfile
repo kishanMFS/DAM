@@ -24,6 +24,7 @@ COPY packages/shared-types/package.json ./packages/shared-types/package.json
 RUN npm ci --omit=dev --workspace=NodeBackend --workspace=@dam/shared-types --include-workspace-root
 COPY --from=builder --chown=node:node /workspace/NodeBackend/dist ./NodeBackend/dist
 WORKDIR /workspace/NodeBackend
+RUN mkdir -p logs && chown node:node logs
 USER node
 EXPOSE 3002
 CMD ["node", "dist/server.js"]

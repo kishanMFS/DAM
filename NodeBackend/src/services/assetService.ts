@@ -1,17 +1,12 @@
 import type { Asset, ApiResponse, AssetFile } from '@dam/shared-types';
 import sendTask from '../utils/producer.js';
 import * as assetModel from '@/models/assetModel.js';
-import { minio, bucketName, replaceMinioUrl } from '../utils/minio.js';
+import { presignedMinio, minio, bucketName } from '../utils/minio.js';
 import crypto from 'crypto';
 // import env from '@/config/env.js';
 
 // const isProd = env.isProd;
 const BUCKET_NAME = bucketName;
-
-const resolvePresignedUrl = (presignedUrl: string): string => {
-  const rewrittenUrl = replaceMinioUrl(presignedUrl);
-  return rewrittenUrl || presignedUrl;
-};
 
 export const getAssetsService = async (
   userid: string,
@@ -31,8 +26,10 @@ export const getAssetsService = async (
     const filesWithUrls = await Promise.all(
       result.Assets.map(async (asset) => ({
         ...asset,
-        downloadUrl: resolvePresignedUrl(
-          await minio.presignedGetObject(BUCKET_NAME, asset.storage_key, 60 * 60),
+        downloadUrl: await presignedMinio.presignedGetObject(
+          BUCKET_NAME,
+          asset.storage_key,
+          60 * 60,
         ),
       })),
     );
@@ -68,8 +65,10 @@ export const getPresignedURLService = async (
     files.map(async (file) => {
       const objectName = `${Date.now()}-${crypto.randomUUID()}-${file.fileName}`;
 
-      const presignedUrl = resolvePresignedUrl(
-        await minio.presignedPutObject(BUCKET_NAME, objectName, 60 * 10),
+      const presignedUrl = await presignedMinio.presignedPutObject(
+        BUCKET_NAME,
+        objectName,
+        60 * 10,
       );
 
       return {

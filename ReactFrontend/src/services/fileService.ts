@@ -11,9 +11,9 @@ export interface UploadFileResponse {
   parentid?: string | null;
   parentId?: string | null;
   storage_key?: string;
-  status?: "pending" | "processing" | "complete" | "error";
+  status?: "pending" | "processing" | "complete" | "error" | null;
   progress?: number;
-  file_size?: number | string;
+  file_size?: number | string | null;
   mime_type?: string;
   data?: Array<{ tags?: Record<string, unknown> }>;
 }
