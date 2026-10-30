@@ -5,6 +5,8 @@ import env from './config/env.js';
 import errorHandler from './middleware/errorHandler.js';
 import cookies from 'cookie-parser';
 import helmet from 'helmet';
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 import { initializeMinio } from './utils/minio.js';
 import { closeProducer } from './utils/producer.js';
 import { closeDatabase } from './utils/db.js';
@@ -50,6 +52,62 @@ app.use('/api/auth', authRateLimiter, authRoutes);
 // app.use('/api/users', userRoutes);
 app.use('/api/assets', assetRoutes);
 
+const swaggerRoot = process.cwd().endsWith('NodeBackend') ? '.' : './NodeBackend';
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'DAM API',
+      version: '1.0.0',
+      description: 'Authentication and digital asset management API.',
+    },
+    servers: [{ url: '/api' }],
+    tags: [
+      { name: 'Auth', description: 'Session authentication' },
+      { name: 'Assets', description: 'Asset upload, listing, and management' },
+    ],
+    components: {
+      securitySchemes: {
+        accessToken: { type: 'apiKey', in: 'cookie', name: 'access_token' },
+      },
+      schemas: {
+        LoginRequest: {
+          type: 'object',
+          required: ['email', 'password'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            password: { type: 'string', format: 'password' },
+          },
+        },
+        AssetUpload: {
+          type: 'object',
+          required: ['objectName', 'originalName', 'fileType', 'size'],
+          properties: {
+            objectName: { type: 'string' },
+            originalName: { type: 'string' },
+            fileType: { type: 'string' },
+            size: { type: 'number', description: 'Size in megabytes' },
+          },
+        },
+        PresignedFile: {
+          type: 'object',
+          required: ['fileName', 'mimeType'],
+          properties: {
+            fileName: { type: 'string' },
+            mimeType: { type: 'string' },
+          },
+        },
+      },
+    },
+  },
+  apis: [`${swaggerRoot}/src/routes/*.ts`, `${swaggerRoot}/dist/routes/*.js`],
+};
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+
+app.get('/api-docs.json', (_request, response) => {
+  response.json(swaggerDocs);
+});
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 // Error handling middleware
 app.use(unexpectedRequest);
 app.use(addErrorToRequestLog);
@@ -57,6 +115,7 @@ app.use(globalErrorHandler);
 
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
 });
 
 const shutdown = (signal: NodeJS.Signals) => {
